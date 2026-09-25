@@ -1,6 +1,8 @@
 ---
 name: local-workspace-files
 description: Detail on local workspace files (personal plans, work logs, sensitive context, personal settings) - why they are not shared, the .gitignore layout, and how to carry them into and back out of background or worktree sessions. The skeleton is .claude/rules/local-workspace-files.md.
+license: MIT
+allowed-tools: Read, Bash
 ---
 
 # Local workspace files (detail)

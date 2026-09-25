@@ -1,6 +1,8 @@
 ---
 name: pre-work-verification
 description: 手順書・スクリプト・コマンドを提示する前の作業前検証。対象の構成確認 → リリースノート → ナレッジ検索 → 公式リファレンスでの裏取り → 計画の見直し → リモート実行環境の差の確認、の 6 手順。
+license: MIT
+allowed-tools: Read, Grep, Glob, WebFetch, Bash
 ---
 
 # 作業前検証フロー

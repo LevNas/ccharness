@@ -1,6 +1,8 @@
 ---
 name: local-workspace-files
 description: ローカル作業ファイル（個人プラン・作業ログ・個人設定）の扱いの詳細。共有しない理由、.gitignore の構成、worktree セッションとの持ち込み・書き戻し。骨子は rules/local-workspace-files.md。
+license: MIT
+allowed-tools: Read, Bash
 ---
 
 # ローカル作業ファイルの扱い（詳細）

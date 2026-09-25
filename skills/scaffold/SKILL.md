@@ -1,6 +1,8 @@
 ---
 name: scaffold
 description: Scaffold ccharness into a repository - always-on rule templates into .claude/rules/, behaviour skills into .claude/skills/, standard-tier permissions.deny rules into .claude/settings.json, and the CLAUDE.md snippet for the user to approve. Use when setting up a new repository's harness or when asked to scaffold ccharness. Never overwrites.
+license: MIT
+allowed-tools: Bash, Read, Edit
 ---
 
 # Scaffold

@@ -1,6 +1,8 @@
 ---
 name: session-end-cleanup
 description: At session end or when asked to tidy branches, detect local branches and worktrees that are merged or whose upstream is gone, classify them as A (safe to delete) or B (worktree attached), and ask the user. Never deletes anything itself.
+license: MIT
+allowed-tools: Bash, Read
 ---
 
 # session-end-cleanup — branch and worktree inventory

@@ -1,6 +1,8 @@
 ---
 name: dev-shipper
 description: Implement features and fixes with high reproducibility. Use for coding tasks, refactors, bugfixes, adding tests and preparing PR-ready changes; applies the Definition of Done.
+license: MIT
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
 # Dev Shipper

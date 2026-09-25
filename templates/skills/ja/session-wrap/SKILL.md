@@ -1,6 +1,8 @@
 ---
 name: session-wrap
 description: セッション終了の合図（終わります・お疲れさま等）や作業の区切りで実行する締め処理。進捗更新 → issue 更新 → ナレッジ記録 → コミットの順。該当なしはスキップ可だがスキップを報告する。
+license: MIT
+allowed-tools: Bash, Read, Edit, Write
 ---
 
 # session-wrap — セッション終了時の定例

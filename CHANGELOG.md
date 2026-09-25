@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.1
+
+- SKILL.md frontmatter: `license` and `allowed-tools` on the plugin skills and on every scaffold skill template, as the levnas-plugins marketplace lint requires.
+
+## 0.2.0
 
 - Scaffold: behaviour skills as repository-owned copies under `.claude/skills/` (`session-wrap`, `session-end-cleanup`, `dev-shipper`, `pre-work-verification`, `local-workspace-files` detail; ja/en). Never overwritten; marker inserted after the frontmatter; `--no-skills` to skip. The plugin itself still ships only `scaffold` and `harness-budget`.
 - Repository hygiene: `.gitignore` for `__pycache__`; tracked `.pyc` files removed.

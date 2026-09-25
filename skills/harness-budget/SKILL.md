@@ -1,6 +1,8 @@
 ---
 name: harness-budget
 description: Measure the always-on context budget in bytes (CLAUDE.md, .claude/rules, skill descriptions of project, user and enabled plugins, capped at skillListingMaxDescChars). Use during periodic review, after scaffolding, or whenever rules feel bloated, to report the delta and decide what moves to a skill.
+license: MIT
+allowed-tools: Bash, Read
 ---
 
 # Harness budget

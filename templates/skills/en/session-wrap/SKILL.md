@@ -1,6 +1,8 @@
 ---
 name: session-wrap
 description: Closing routine when the user signals the end of a session or a milestone - update progress, update issues, record knowledge, commit, in that order. Steps that do not apply may be skipped but must be reported as skipped.
+license: MIT
+allowed-tools: Bash, Read, Edit, Write
 ---
 
 # session-wrap — closing routine
