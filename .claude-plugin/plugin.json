@@ -1,7 +1,7 @@
 {
   "name": "ccharness",
-  "description": "Ship-time harness for Claude Code: scaffold always-on rules and a CLAUDE.md snippet into a repo, block destructive shell commands with a deterministic PreToolUse guard, and ship behavior skills that load lazily.",
-  "version": "0.1.0",
+  "description": "Ship-time harness for Claude Code: scaffold always-on rules and a CLAUDE.md snippet into a repo, ship the standard command blocking as official permissions.deny rules with a small hard-deny floor hook, and scaffold behaviour skills that each repository owns.",
+  "version": "0.2.0",
   "author": {
     "name": "LevNas"
   },

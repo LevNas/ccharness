@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # ccharness scaffold: put the always-on harness into <target> using official files only.
 #
-#   .claude/rules/<name>.md        rule templates (never overwritten; marker line on top)
-#   .claude/settings.json          permissions.deny rules for the standard tier
-#                                  (created when absent; otherwise the missing rules are printed)
-#   CLAUDE.md                      never written; the snippet path is printed for review
+#   .claude/rules/<name>.md          rule templates (never overwritten; marker line on top)
+#   .claude/skills/<name>/SKILL.md   behaviour skills (never overwritten; marker after the
+#                                    frontmatter; each repository owns and adapts them)
+#   .claude/settings.json            permissions.deny rules for the standard tier
+#                                    (created when absent; otherwise the missing rules are printed)
+#   CLAUDE.md                        never written; the snippet path is printed for review
 #
-# Usage: scaffold.sh [--lang ja|en] [--target DIR] [--dry-run] [--no-settings]
+# Usage: scaffold.sh [--lang ja|en] [--target DIR] [--dry-run] [--no-settings] [--no-skills]
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,9 +17,10 @@ LANG_SEL="en"
 TARGET="$PWD"
 DRY=0
 SETTINGS=1
+SKILLS=1
 
 usage() {
-  sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -26,6 +29,7 @@ while [ $# -gt 0 ]; do
     --target) TARGET="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --no-settings) SETTINGS=0; shift ;;
+    --no-skills) SKILLS=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 64 ;;
   esac
@@ -42,6 +46,7 @@ MARKER="<!-- ccharness template v$VERSION ($LANG_SEL) -->"
 created=0
 skipped=0
 
+# --- always-on tier: rule files ---------------------------------------------
 for tpl in "$TPL_DIR"/*.md; do
   name="$(basename "$tpl")"
   dest="$RULES_DIR/$name"
@@ -68,6 +73,33 @@ for tpl in "$TPL_DIR"/*.md; do
   fi
   created=$((created + 1))
 done
+
+# --- on-demand tier: behaviour skills (repository-owned copies) -------------
+skills_created=0
+skills_skipped=0
+SKILL_TPL_DIR="$HERE/templates/skills/$LANG_SEL"
+if [ "$SKILLS" -eq 1 ] && [ -d "$SKILL_TPL_DIR" ]; then
+  for tpl in "$SKILL_TPL_DIR"/*/SKILL.md; do
+    name="$(basename "$(dirname "$tpl")")"
+    dest="$TARGET/.claude/skills/$name/SKILL.md"
+    if [ -e "$dest" ]; then
+      skills_skipped=$((skills_skipped + 1))
+      echo "skip (exists):           $dest"
+      continue
+    fi
+    echo "create:                  $dest"
+    if [ "$DRY" -eq 0 ]; then
+      mkdir -p "$(dirname "$dest")"
+      # Insert the marker right after the frontmatter so the file stays a valid skill.
+      awk -v marker="$MARKER" '
+        NR == 1 && $0 == "---" { infm = 1 }
+        { print }
+        infm && NR > 1 && $0 == "---" { print marker; infm = 0 }
+      ' "$tpl" > "$dest"
+    fi
+    skills_created=$((skills_created + 1))
+  done
+fi
 
 # --- standard tier: official permissions.deny rules -------------------------
 SNIPPET="$HERE/templates/settings.snippet.json"
@@ -120,5 +152,5 @@ Suggested .gitignore entries for local workspace files (add if missing):
   .claude/private/
   .claude/settings.local.json
 
-done: created=$created skipped=$skipped settings=$settings_state lang=$LANG_SEL target=$TARGET dry-run=$DRY
+done: created=$created skipped=$skipped skills_created=$skills_created skills_skipped=$skills_skipped settings=$settings_state lang=$LANG_SEL target=$TARGET dry-run=$DRY
 EOF

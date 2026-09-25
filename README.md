@@ -10,6 +10,7 @@ Claude Code plugins cannot load a `CLAUDE.md` or `.claude/rules/` on their own: 
 
 - **Rules that cause an accident if unknown** are scaffolded into `.claude/rules/` (always-on).
 - **Opinionated command blocking** is scaffolded as official `permissions.deny` rules into `.claude/settings.json` (per repository, committed, opt-in).
+- **Behaviour skills** (session wrap-up, branch cleanup, Definition of Done, pre-work verification, local workspace files) are scaffolded into `.claude/skills/` so each repository owns and adapts them, and the plugin's always-on cost stays at two skill descriptions.
 - **Everything else** ships as plugin skills whose bodies load only when used.
 - **One hook** stays in the plugin: the hard-deny floor, for the handful of commands a deny rule cannot express.
 
@@ -21,12 +22,13 @@ The split follows one question: *would starting work without knowing this cause 
 |---|---|---|
 | `scripts/scaffold.sh` + `skills/scaffold` | scaffold | Copy rule templates into `.claude/rules/` (never overwrites), create or complete `permissions.deny` in `.claude/settings.json`, hand the `CLAUDE.md` snippet to the user |
 | `templates/rules/{ja,en}/` | templates | `tool-call-resilience`, `discussion-phase-restraint`, `rules-and-skills-layering`, `local-workspace-files`; `tone` (Japanese only) |
+| `templates/skills/{ja,en}/` | templates | `session-wrap`, `session-end-cleanup`, `dev-shipper`, `pre-work-verification`, `local-workspace-files` (detail) - copied to `.claude/skills/` once, then owned by the repository (`--no-skills` to skip) |
 | `templates/settings.snippet.json` | template | Standard-tier deny rules: force push, `reset --hard`, `clean -f`, worktree-discarding checkout/restore, `chmod -R 777` |
 | `templates/CLAUDE.md.snippet.{ja,en}.md` | template | Workflow Rules, Response Quality, Safety, Output Approach, Host Resource Constraints |
 | `hooks/pretool_bash_guard.py` | PreToolUse(Bash) hook | Hard-deny floor: `rm -r` on root/home/cwd/glob (also as `/bin/rm`, `sudo rm`, `bash -c`), fork bomb, `mkfs`, `dd`/redirect onto a block device, `shred` |
 | `scripts/measure_always_on.py` + `skills/harness-budget` | measurement | Bytes of always-on context: CLAUDE.md, rules, skill descriptions (capped at `skillListingMaxDescChars`) across project, user and enabled plugins |
 
-Scaffolded rule files start with a marker line, `<!-- ccharness template v0.1.0 (ja) -->`, so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
+Scaffolded rule files start with a marker line, `<!-- ccharness template v0.2.0 (ja) -->` (skills carry it right after the frontmatter), so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
 
 ## Install
 
@@ -107,8 +109,8 @@ Claude Code already separates user (`~/.claude/`), shared project (`.claude/`), 
 
 ## Roadmap
 
-- **0.1** scaffold, templates, deny-rule snippet, floor hook, budget measurement (this release).
-- **0.2** behaviour skills as scaffold templates (`session-wrap`, `session-end-cleanup`, `dev-shipper`, `pre-work-verification`, `local-workspace-files` detail), so each repository owns and adapts them and the plugin's always-on description cost stays at two skills.
+- **0.1** scaffold, templates, deny-rule snippet, floor hook, budget measurement.
+- **0.2** behaviour skills as scaffold templates (this release).
 - **0.3** optional profiles (for example `--profile ops` with production-command safety rules).
 
 ## Development
