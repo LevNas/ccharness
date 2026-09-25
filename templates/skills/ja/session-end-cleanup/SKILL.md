@@ -1,6 +1,8 @@
 ---
 name: session-end-cleanup
 description: セッション終了時や「不要ブランチを棚卸しして」の依頼で、マージ済み・upstream 消失のローカルブランチと worktree を検出し、削除候補を A（即削除可）/ B（worktree あり）に分類して利用者の判断を仰ぐ。削除は実行しない。
+license: MIT
+allowed-tools: Bash, Read
 ---
 
 # session-end-cleanup — ブランチ / worktree の棚卸し

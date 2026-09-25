@@ -1,7 +1,7 @@
 {
   "name": "ccharness",
   "description": "Ship-time harness for Claude Code: scaffold always-on rules and a CLAUDE.md snippet into a repo, ship the standard command blocking as official permissions.deny rules with a small hard-deny floor hook, and scaffold behaviour skills that each repository owns.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "LevNas"
   },

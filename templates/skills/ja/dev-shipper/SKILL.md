@@ -1,6 +1,8 @@
 ---
 name: dev-shipper
 description: 機能追加・修正・リファクタ・テスト追加・PR 準備などのコーディング作業で、再現性の高い進め方と完了の定義（DoD）を適用する。
+license: MIT
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
 # Dev Shipper

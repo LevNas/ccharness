@@ -1,6 +1,8 @@
 ---
 name: pre-work-verification
 description: Verification before presenting procedures, scripts or commands - confirm the target configuration, read release notes, search prior knowledge, verify against official references, adjust the plan, and check the remote execution environment. Six steps.
+license: MIT
+allowed-tools: Read, Grep, Glob, WebFetch, Bash
 ---
 
 # Pre-work verification flow
