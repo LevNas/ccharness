@@ -1,0 +1,24 @@
+{
+  "_comment": "ccharness template v0.1.0: opt-in deny rules for the standard tier. Scaffold creates .claude/settings.json from this file when none exists, otherwise it prints the rules missing from yours. Official rule semantics: https://code.claude.com/docs/en/permissions",
+  "permissions": {
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push --force)",
+      "Bash(git push -f *)",
+      "Bash(git push -f)",
+      "Bash(git push * +*)",
+      "Bash(git push --delete *)",
+      "Bash(git push -d *)",
+      "Bash(git push * --delete *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean --force*)",
+      "Bash(git checkout -- .)",
+      "Bash(git checkout .)",
+      "Bash(git restore .)",
+      "Bash(git restore --worktree .)",
+      "Bash(chmod -R 777 *)",
+      "Bash(chmod -R a+rwx *)"
+    ]
+  }
+}
