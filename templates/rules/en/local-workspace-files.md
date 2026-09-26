@@ -15,6 +15,7 @@ List them in `.gitignore`. When unsure, do not commit; ask the user.
 
 `CLAUDE.md`, `.claude/settings.json` and `.claude/rules/` are shared. Machine-specific values, paths and preferences belong in `~/.claude/` or `settings.local.json`.
 
-## Writes from background or worktree sessions
+## Worktree sessions
 
-Untracked working files produced in an isolated worktree are moved back to the main checkout before the worktree is removed.
+- To carry gitignored local files into every new worktree, list them in `.worktreeinclude` at the project root (`.gitignore` syntax). Do not copy them by hand.
+- Untracked working files produced in an isolated worktree are moved back to the main checkout before the worktree is removed.

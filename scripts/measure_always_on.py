@@ -13,6 +13,10 @@ Skill bodies are not counted: they load only when the skill is used. Each
 description is capped at the official `skillListingMaxDescChars` setting
 (default 1536 characters), read from user, project and local settings.
 
+CLAUDE.md files also get a line count against the official guideline of
+200 lines ("Aim to keep CLAUDE.md under 200 lines by including only
+essentials", https://code.claude.com/docs/en/costs). Files over it are flagged.
+
 Usage: measure_always_on.py [--target DIR] [--json]
 """
 from __future__ import annotations
@@ -25,6 +29,7 @@ import re
 import sys
 
 DEFAULT_DESC_CAP = 1536
+CLAUDE_MD_LINE_GUIDELINE = 200
 
 
 def _load_json(path: str) -> dict:
@@ -45,6 +50,14 @@ def _settings_files(target: str, home: str) -> list[str]:
 def _bytes(path: str) -> int:
     try:
         return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
+def _lines(path: str) -> int:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return sum(1 for _ in fh)
     except OSError:
         return 0
 
@@ -107,19 +120,27 @@ def measure(target: str, home: str) -> dict:
         rows.append({"category": category, "item": item, "files": len(files),
                      "bytes": sum(size_fn(f) for f in files)})
 
-    add("project", "CLAUDE.md", [p for p in (os.path.join(target, "CLAUDE.md"),
-                                           os.path.join(target, ".claude", "CLAUDE.md"),
-                                           os.path.join(target, "CLAUDE.local.md")) if os.path.exists(p)], _bytes)
+    project_md = [p for p in (os.path.join(target, "CLAUDE.md"),
+                              os.path.join(target, ".claude", "CLAUDE.md"),
+                              os.path.join(target, "CLAUDE.local.md")) if os.path.exists(p)]
+    user_md = [p for p in (os.path.join(home, ".claude", "CLAUDE.md"),) if os.path.exists(p)]
+
+    add("project", "CLAUDE.md", project_md, _bytes)
     add("project", ".claude/rules", _rules(os.path.join(target, ".claude", "rules")), _bytes)
     add("project", "skill descriptions", _skills(os.path.join(target, ".claude", "skills")), desc_bytes)
-    add("user", "~/.claude/CLAUDE.md", [p for p in (os.path.join(home, ".claude", "CLAUDE.md"),) if os.path.exists(p)], _bytes)
+    add("user", "~/.claude/CLAUDE.md", user_md, _bytes)
     add("user", "~/.claude/rules", _rules(os.path.join(home, ".claude", "rules")), _bytes)
     add("user", "skill descriptions", _skills(os.path.join(home, ".claude", "skills")), desc_bytes)
     for spec in _enabled_plugins(settings):
         add("plugins", spec, _plugin_skill_files(spec, home), desc_bytes)
 
+    claude_md_lines = [{"path": p, "lines": _lines(p), "over_guideline": _lines(p) > CLAUDE_MD_LINE_GUIDELINE}
+                       for p in project_md + user_md]
+
     return {"target": target, "desc_cap_chars": cap, "rows": rows,
-            "total_bytes": sum(r["bytes"] for r in rows)}
+            "total_bytes": sum(r["bytes"] for r in rows),
+            "claude_md_line_guideline": CLAUDE_MD_LINE_GUIDELINE,
+            "claude_md_lines": claude_md_lines}
 
 
 def main() -> int:
@@ -137,6 +158,12 @@ def main() -> int:
     for r in result["rows"]:
         print(f"{r['category']:<9} {r['item']:<40} {r['files']:>5} {r['bytes']:>9,}")
     print(f"{'total':<9} {'':<40} {'':>5} {result['total_bytes']:>9,}")
+    if result["claude_md_lines"]:
+        print()
+        print(f"CLAUDE.md lines (official guideline: under {CLAUDE_MD_LINE_GUIDELINE}):")
+        for m in result["claude_md_lines"]:
+            flag = "  OVER: move detail to skills or paths-scoped rules" if m["over_guideline"] else ""
+            print(f"  {m['lines']:>5}  {m['path']}{flag}")
     return 0
 
 
