@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- local-workspace-files (rule and skill templates, ja/en): carry gitignored files into worktrees with the official `.worktreeinclude` instead of copying by hand; document the skills read-through from the main checkout and `worktree.baseRef`; add `.claude/worktrees/` to the suggested `.gitignore`.
+- harness-budget: CLAUDE.md line counts against the official 200-line guideline; a review step for unused instructions using `/context` and `/usage` attribution.
+
 ## 0.2.1
 
 - SKILL.md frontmatter: `license` and `allowed-tools` on the plugin skills and on every scaffold skill template, as the levnas-plugins marketplace lint requires.

@@ -26,7 +26,7 @@ The split follows one question: *would starting work without knowing this cause 
 | `templates/settings.snippet.json` | template | Standard-tier deny rules: force push, `reset --hard`, `clean -f`, worktree-discarding checkout/restore, `chmod -R 777` |
 | `templates/CLAUDE.md.snippet.{ja,en}.md` | template | Workflow Rules, Response Quality, Safety, Output Approach, Host Resource Constraints |
 | `hooks/pretool_bash_guard.py` | PreToolUse(Bash) hook | Hard-deny floor: `rm -r` on root/home/cwd/glob (also as `/bin/rm`, `sudo rm`, `bash -c`), fork bomb, `mkfs`, `dd`/redirect onto a block device, `shred` |
-| `scripts/measure_always_on.py` + `skills/harness-budget` | measurement | Bytes of always-on context: CLAUDE.md, rules, skill descriptions (capped at `skillListingMaxDescChars`) across project, user and enabled plugins |
+| `scripts/measure_always_on.py` + `skills/harness-budget` | measurement | Bytes of always-on context: CLAUDE.md, rules, skill descriptions (capped at `skillListingMaxDescChars`) across project, user and enabled plugins; CLAUDE.md line counts against the official 200-line guideline |
 
 Scaffolded rule files start with a marker line, `<!-- ccharness template v0.2.0 (ja) -->` (skills carry it right after the frontmatter), so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
 
@@ -98,6 +98,7 @@ Claude Code already separates user (`~/.claude/`), shared project (`.claude/`), 
 - **User**: your own style across every repository belongs in `~/.claude/CLAUDE.md` and `~/.claude/rules/`. Keep work-specific content out of it; it loads in every repository.
 - **Personal per-project**: `CLAUDE.local.md` (gitignored). To share personal instructions across worktrees, import a home file: `@~/.claude/my-project-instructions.md`.
 - **Several repositories at once**: `claude --add-dir ../other-repo` grants access; set `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` (for example in the `env` block of `~/.claude/settings.json`) to also load that repository's `CLAUDE.md` and `.claude/rules/`.
+- **Worktrees**: gitignored local files reach new worktrees through `.worktreeinclude` at the project root; the skills template explains it. ccharness ships no copy step of its own.
 
 ## Non-goals
 

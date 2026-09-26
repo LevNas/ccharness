@@ -15,6 +15,7 @@
 
 `CLAUDE.md`、`.claude/settings.json`、`.claude/rules/` は共有物です。個人の環境固有の値・パス・好みは `~/.claude/` か `settings.local.json` に置きます。
 
-## バックグラウンド・worktree セッションからの書き込み
+## worktree セッションとのやり取り
 
-分離 worktree で生じた未追跡の作業ファイルは、worktree を削除する前にメイン側へ退避します。
+- gitignore 済みのローカルファイルを新しい worktree に持ち込むには、プロジェクトルートの `.worktreeinclude`（gitignore 構文）に書きます。手作業でコピーしません。
+- 分離 worktree で生じた未追跡の作業ファイルは、worktree を削除する前にメイン側へ退避します。
