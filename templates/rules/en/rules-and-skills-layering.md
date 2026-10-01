@@ -27,4 +27,4 @@ Ask: "Would starting work without knowing this rule cause an accident?" If yes, 
 ## Editing mid-session
 
 - Editing CLAUDE.md or `.claude/rules/` during a session keeps the cache, but the edit does not apply until the next `/compact`, `/clear` or restart. To make it take effect now, `/compact` at a natural break.
-- What survives compaction is what is in files. CLAUDE.md and rules without `paths:` are re-read; only the start of recently used skills comes back. Decisions made only in conversation are lost, so write the ones that must last into a file.
+- What survives compaction is what is in files. CLAUDE.md and rules without `paths:` are re-read; only the start of recently used skills comes back. The skill listing (descriptions) does not come back, so name in CLAUDE.md or rules any skill that must stay usable after compaction. Decisions made only in conversation are lost, so write the ones that must last into a file.

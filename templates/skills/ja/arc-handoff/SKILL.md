@@ -29,4 +29,5 @@ allowed-tools: Bash, Read, Edit, Write
 ## 背景
 
 - CLAUDE.md と `paths:` の無い rules は compaction のあとに読み直されます。skill は直近に使ったものの先頭 5,000 トークンだけが戻ります。会話の中だけの指示は消えます。
+- skill の一覧（description）は compaction のあとに戻りません。このスキルの名前を CLAUDE.md に書いておくか、`/arc-handoff` と名前で呼び出します。
 - CLAUDE.md の `Compact Instructions` 節は、要約に残す項目を指定します。このスキルは、その要約に頼らずに済むよう、先にファイルへ書き出す手順です。

@@ -29,4 +29,5 @@ Run this at the boundary between two arcs (units of work) when one session is us
 ## Background
 
 - CLAUDE.md and rules without `paths:` are re-read after compaction; only the first 5,000 tokens of recently used skills come back; instructions given only in conversation are lost.
+- The skill listing (descriptions) does not come back after compaction. Name this skill in CLAUDE.md, or invoke it as `/arc-handoff`.
 - The `Compact Instructions` section of CLAUDE.md tells the summary what to keep. This skill writes the state to files first so the session does not depend on the summary.

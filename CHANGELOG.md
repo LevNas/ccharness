@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+The skill listing does not come back after compaction (https://code.claude.com/docs/en/context-window, "What survives compaction"): only the bodies of invoked skills are re-injected. A skill that has not been used yet in the session is then out of Claude's sight unless something re-injected names it.
+
+- CLAUDE.md snippet (ja/en): the `Compact Instructions` section names `arc-handoff` (arc boundary) and `session-wrap` (end of session), so both stay usable after compaction. Snippet marker v0.3.1.
+- `rules-and-skills-layering` (ja/en): the mid-session note says the listing does not come back and that skills needed after compaction are named in CLAUDE.md or rules.
+- `arc-handoff` (ja/en): the background notes the same and that `/arc-handoff` works by name.
+
 ## 0.3.0
 
 Long-session support (#3): prose and skills only, no new hook. Restoring state after compaction belongs to the plugin that owns the state (ccmemo 1.29).
