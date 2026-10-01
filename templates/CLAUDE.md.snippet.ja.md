@@ -1,4 +1,4 @@
-<!-- ccharness template v0.1.0 (ja): レビューのうえ、利用者の承認を得て CLAUDE.md に追記する -->
+<!-- ccharness template v0.3.0 (ja): レビューのうえ、利用者の承認を得て CLAUDE.md に追記する -->
 
 ## Workflow Rules
 
@@ -31,3 +31,11 @@
 ## Host Resource Constraints
 
 - 並列エージェントは同時 2〜3 まで。大量ファイルの一括読み込みや巨大な出力を避ける。長時間の処理はバックグラウンド実行を検討する
+
+## Compact Instructions
+
+compaction の要約では、次を必ず残す:
+- 変更したファイルの一覧と、未コミットの変更の有無
+- 未完了のチェックリストと、取り組んでいる issue / PR の番号
+- テスト・ビルドのコマンドと直近の結果
+- 会話の中で利用者が決め、まだファイルに書いていないこと

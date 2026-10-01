@@ -1,4 +1,4 @@
-<!-- ccharness template v0.1.0 (en): review, then append to CLAUDE.md with the user's approval -->
+<!-- ccharness template v0.3.0 (en): review, then append to CLAUDE.md with the user's approval -->
 
 ## Workflow Rules
 
@@ -31,3 +31,11 @@
 ## Host Resource Constraints
 
 - At most two or three parallel agents. Avoid bulk file reads and huge command output. Consider background execution for long builds or installs
+
+## Compact Instructions
+
+When compacting, always keep:
+- the list of modified files, and whether changes are uncommitted
+- the unfinished checklist and the issue / PR numbers being worked on
+- the test and build commands and their latest result
+- decisions the user made in conversation that are not yet written to a file

@@ -81,6 +81,10 @@ echo "$out" | grep -q 'skills_created=0 skills_skipped=0 settings=skipped' || fa
 [ -e "$ROOT/templates/rules/ja/tone.md" ] || fail "ja/tone.md missing"
 [ ! -e "$ROOT/templates/rules/en/tone.md" ] || fail "tone.md must be ja-only"
 diff <(ls "$ROOT/templates/skills/ja") <(ls "$ROOT/templates/skills/en") >/dev/null || fail "ja and en skill sets differ"
+for l in ja en; do
+  [ -e "$ROOT/templates/skills/$l/arc-handoff/SKILL.md" ] || fail "$l arc-handoff skill missing"
+  grep -q '^## Compact Instructions$' "$ROOT/templates/CLAUDE.md.snippet.$l.md" || fail "$l snippet lacks Compact Instructions"
+done
 
 # 9. CLAUDE.md is never written
 [ ! -e "$TMP/CLAUDE.md" ] || fail "CLAUDE.md must not be written"

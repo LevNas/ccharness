@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+Long-session support (#3): prose and skills only, no new hook. Restoring state after compaction belongs to the plugin that owns the state (ccmemo 1.29).
+
+- CLAUDE.md snippet (ja/en): a `Compact Instructions` section — keep modified files and uncommitted state, the unfinished checklist and issue / PR numbers, test and build commands with the latest result, and decisions made only in conversation. Snippet marker now v0.3.0.
+- `arc-handoff` skill template (ja/en): at the boundary between two arcs of one session, write the state to the issue, task file or knowledge base, then hand the user a `/compact` line naming the next arc; `/rename` + `/clear` for unrelated work, `session-wrap` to end the session. Key steps sit at the top because only the first 5,000 tokens of a skill come back after compaction.
+- `rules-and-skills-layering` (ja/en): a "mid-session edits" section — editing CLAUDE.md or rules keeps the cache but applies only at the next `/compact`, `/clear` or restart; only what is in files survives compaction.
+- harness-budget: the skill listing estimated against its official budget (1% of the context window in characters; `skillListingBudgetFraction`, `SLASH_COMMAND_TOOL_CHAR_BUDGET`; `--window`, else 1M for a `[1m]` model, else 200k), with advice when over; points to `/doctor prompt-audit`.
+- Tests: `tests/test_measure.py` (new); `tests/test_scaffold.sh` checks the new skill and snippet section in both languages.
+
 ## 0.2.2
 
 - local-workspace-files (rule and skill templates, ja/en): carry gitignored files into worktrees with the official `.worktreeinclude` instead of copying by hand; document the skills read-through from the main checkout and `worktree.baseRef`; add `.claude/worktrees/` to the suggested `.gitignore`.
