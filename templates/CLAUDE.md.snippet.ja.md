@@ -1,4 +1,4 @@
-<!-- ccharness template v0.3.0 (ja): レビューのうえ、利用者の承認を得て CLAUDE.md に追記する -->
+<!-- ccharness template v0.3.1 (ja): レビューのうえ、利用者の承認を得て CLAUDE.md に追記する -->
 
 ## Workflow Rules
 
@@ -39,3 +39,5 @@ compaction の要約では、次を必ず残す:
 - 未完了のチェックリストと、取り組んでいる issue / PR の番号
 - テスト・ビルドのコマンドと直近の結果
 - 会話の中で利用者が決め、まだファイルに書いていないこと
+
+compaction のあとはスキルの一覧が戻らない。アークの境目では `arc-handoff`、セッションの終わりでは `session-wrap` を名前で使う。

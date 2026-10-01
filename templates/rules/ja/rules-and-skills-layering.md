@@ -27,4 +27,4 @@
 ## 途中で編集したとき
 
 - セッションの途中で CLAUDE.md や `.claude/rules/` を編集しても、キャッシュは壊れませんが、内容は次の `/compact`・`/clear`・再起動まで反映されません。すぐ効かせたいときは、区切りで `/compact` します。
-- compaction のあとに残るのは、ファイルに書いたものです。CLAUDE.md と `paths:` の無い rules は読み直され、skill は直近に使ったものの先頭だけが戻ります。会話の中だけで決めたことは消えるので、残すべき決定はファイルに書きます。
+- compaction のあとに残るのは、ファイルに書いたものです。CLAUDE.md と `paths:` の無い rules は読み直され、skill は直近に使ったものの先頭だけが戻ります。skill の一覧（description）は戻らないので、compaction のあとも使わせたい skill は CLAUDE.md か rules に名前を書きます。会話の中だけで決めたことは消えるので、残すべき決定はファイルに書きます。

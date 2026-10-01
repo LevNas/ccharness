@@ -1,4 +1,4 @@
-<!-- ccharness template v0.3.0 (en): review, then append to CLAUDE.md with the user's approval -->
+<!-- ccharness template v0.3.1 (en): review, then append to CLAUDE.md with the user's approval -->
 
 ## Workflow Rules
 
@@ -39,3 +39,5 @@ When compacting, always keep:
 - the unfinished checklist and the issue / PR numbers being worked on
 - the test and build commands and their latest result
 - decisions the user made in conversation that are not yet written to a file
+
+The skill listing does not come back after compaction. Use skills by name: `arc-handoff` at an arc boundary, `session-wrap` at the end of a session.
