@@ -1,6 +1,6 @@
 ---
 name: harness-budget
-description: Measure the always-on context budget in bytes (CLAUDE.md, .claude/rules, skill descriptions of project, user and enabled plugins, capped at skillListingMaxDescChars) and CLAUDE.md line counts against the 200-line guideline. Use during periodic review, after scaffolding, or whenever rules feel bloated, to report the delta and decide what moves to a skill.
+description: Measure the always-on context budget in bytes (CLAUDE.md, .claude/rules, skill descriptions of project, user and enabled plugins, capped at skillListingMaxDescChars) CLAUDE.md line counts against the 200-line guideline, and the skill listing against its budget. Use during periodic review, after scaffolding, or whenever rules feel bloated, to report the delta and decide what moves to a skill.
 license: MIT
 allowed-tools: Bash, Read
 ---
@@ -17,10 +17,11 @@ Always-on content is a budget, not a folder. This skill produces the number so t
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/measure_always_on.py"
    ```
 
-   Add `--json` for machine-readable output, `--target DIR` for another repository. The report ends with the line count of each CLAUDE.md against the official guideline of 200 lines.
+   Add `--json` for machine-readable output, `--target DIR` for another repository. The report ends with the line count of each CLAUDE.md against the official guideline of 200 lines, and an estimate of the skill listing against its own budget: 1% of the context window in characters (`--window TOKENS` sets the window; otherwise 1M for a `[1m]` model, else 200k). Over budget, Claude Code drops the descriptions of the least-used skills, so shorten descriptions or set low-priority skills to `"name-only"` in `skillOverrides`.
 2. Compare with the previous figure if one is recorded (periodic review notes, an issue, the knowledge base). Report the delta per category.
 3. If the always-on side grew, re-apply the question "would starting work without this rule cause an accident?" to each new or grown file. Anything that fails moves to `.claude/skills/` or to a `paths:`-scoped rule. Propose the move; do not reshuffle on your own.
 4. Look for instructions nobody uses. Official signals: `/context` shows what is taking space in the current session, and `/usage` attributes recent usage to skills, subagents, plugins and MCP servers. An instruction that never changes behaviour is a candidate for deletion; propose it with the evidence.
+5. For outdated or contradicting content, suggest the official audit `/doctor prompt-audit` (Claude Code v2.1.283 or later). It covers CLAUDE.md, rules, skills, commands and subagents, reports proposed edits, and changes nothing until asked.
 
 ## What the number covers
 
