@@ -108,6 +108,29 @@ def build(base):
     git(work, "switch", "-q", "main")
     git(work, "push", "-q", "origin", "--delete", "gone-unmerged")
 
+    # Every patch is on main, but the branch also has a merge commit of its own.
+    git(work, "switch", "-qc", "with-merge")
+    sha = commit(work, "with-merge.txt")
+    git(work, "switch", "-q", "main")
+    commit(work, "main-side.txt")
+    git(work, "push", "-q", "origin", "main")
+    git(work, "switch", "-q", "with-merge")
+    git(work, "merge", "-q", "--no-ff", "-m", "update from main", "main")
+    git(work, "switch", "-q", "main")
+    git(work, "cherry-pick", sha)
+    git(work, "push", "-q", "origin", "main")
+
+    # A worktree whose `git status` fails.
+    merged_branch(work, "broken-wt", wt("broken-wt"))
+    with open(os.path.join(wt("broken-wt"), ".git"), "w", encoding="utf-8") as f:
+        f.write("gitdir: /nonexistent/broken\n")
+
+    # A detached worktree on a merged commit, and a worktree path with a space.
+    git(work, "worktree", "add", "-q", "--detach", wt("detached"), "HEAD")
+    merged_branch(work, "spaced-wt", wt("with space"))
+    # A tag with the same name as a branch that has a worktree.
+    git(work, "tag", "merged-wt")
+
     merged_branch(work, "locked-live", wt("locked-live"))
     git(work, "worktree", "lock", "--reason", f"claude session x (pid {os.getpid()} start 1)",
         wt("locked-live"))
@@ -115,10 +138,17 @@ def build(base):
     git(work, "worktree", "lock", "--reason", f"claude session y (pid {dead_pid()} start 1)",
         wt("locked-dead"))
 
-    # Someone else moves main: the main checkout falls behind by one commit.
+    # Someone else moves main: the main checkout falls behind. A branch merged there exists
+    # locally but is not in the main checkout's HEAD until the fast-forward.
     git(base, "clone", "-q", remote, other)
+    git(other, "switch", "-qc", "remote-merged")
+    commit(other, "remote-merged.txt")
+    git(other, "push", "-q", "origin", "remote-merged")
+    git(other, "switch", "-q", "main")
+    git(other, "merge", "-q", "--no-ff", "-m", "merge remote-merged", "remote-merged")
     commit(other, "upstream.txt")
     git(other, "push", "-q", "origin", "main")
+    git(work, "fetch", "-q", "origin", "remote-merged:remote-merged")
     return work, wt
 
 
@@ -127,6 +157,14 @@ def main():
         work, wt = build(base)
         before = snapshot(work)
         head_before = git(work, "rev-parse", "HEAD")
+
+        r = run(work, "--json", "--no-pull")
+        early = {i["branch"]: i for i in json.loads(r.stdout)["items"]}
+        check("--no-pull leaves main alone", git(work, "rev-parse", "HEAD") == head_before)
+        check("-d note when the main checkout's HEAD lacks the branch",
+              early.get("remote-merged", {}).get("class") == "delete"
+              and any("does not contain this branch" in n for n in early["remote-merged"]["notes"]),
+              early.get("remote-merged"))
 
         r = run(work, "--json")
         check("json run exits 0", r.returncode == 0, r.stderr)
@@ -138,7 +176,7 @@ def main():
         check("base is origin/main", data["base"] == "origin/main", data["base"])
         check("main fast-forwarded", git(work, "rev-parse", "HEAD") == git(work, "rev-parse", "origin/main")
               and git(work, "rev-parse", "HEAD") != head_before, data["sync"])
-        check("sync note says fast-forwarded", any("fast-forwarded 1" in n for n in data["sync"]),
+        check("sync note says fast-forwarded", any("fast-forwarded 3" in n for n in data["sync"]),
               data["sync"])
         check("main is not listed", "main" not in by, list(by))
 
@@ -164,6 +202,24 @@ def main():
         check("locked by a live process: in-use", cls("locked-live") == "in-use", by.get("locked-live"))
         check("locked by a dead process: review (stale lock)", cls("locked-dead") == "review"
               and "stale lock" in reasons("locked-dead"), by.get("locked-dead"))
+        check("own merge commit: review even though cherry is all '-'",
+              cls("with-merge") == "review" and "merge commit" in reasons("with-merge"),
+              by.get("with-merge"))
+        check("git status failing in a worktree: review, not delete", cls("broken-wt") == "review"
+              and "git status" in reasons("broken-wt"), by.get("broken-wt"))
+        detached = [i for i in data["items"] if i["branch"] is None]
+        check("detached merged worktree: delete with remove only", len(detached) == 1
+              and detached[0]["class"] == "delete" and len(detached[0]["commands"]) == 1
+              and detached[0]["commands"][0].startswith("git worktree remove"), detached)
+        check("path with a space is quoted", cls("spaced-wt") == "delete"
+              and "'" in by["spaced-wt"]["commands"][0] and "with space'" in by["spaced-wt"]["commands"][0],
+              by.get("spaced-wt"))
+        check("tag with the branch's name: worktree still found",
+              by.get("merged-wt", {}).get("worktree") is not None, by.get("merged-wt"))
+        check("-D carries the cherry proof and says git does not check it",
+              "git does not check -D" in by["picked"]["commands"][0], by.get("picked"))
+        check("no note once main has the branch", cls("remote-merged") == "delete"
+              and not by["remote-merged"]["notes"], by.get("remote-merged"))
         check("review items carry no commands",
               all(not i["commands"] for i in data["items"] if i["class"] != "delete"))
 
@@ -178,6 +234,19 @@ def main():
         check("refuses from a linked worktree (exit 2)", r.returncode == 2
               and "linked worktree" in r.stderr, (r.returncode, r.stderr))
         check("still nothing deleted", snapshot(work) == before)
+
+        # master as the base, no remote at all.
+        solo = os.path.join(base, "solo")
+        git(base, "init", "-q", "-b", "master", solo)
+        commit(solo, "a.txt")
+        git(solo, "switch", "-qc", "done")
+        commit(solo, "b.txt")
+        git(solo, "switch", "-q", "master")
+        git(solo, "merge", "-q", "--no-ff", "-m", "merge done", "done")
+        r = run(solo, "--json")
+        d = json.loads(r.stdout) if r.returncode == 0 else {}
+        check("no origin, master base: compares with local master", d.get("base") == "master"
+              and [i["class"] for i in d.get("items", [])] == ["delete"], (r.returncode, r.stderr, d))
 
         os.makedirs(os.path.join(base, "plain"))
         r = run(os.path.join(base, "plain"))

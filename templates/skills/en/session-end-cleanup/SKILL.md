@@ -27,13 +27,13 @@ If the skill is not available, do the same by hand:
 
 1. `git fetch origin --prune`, then `git pull --ff-only` on the base branch in the main checkout (a stale local base branch makes later checks wrong).
 2. For each branch, decide by content, not by labels:
-   - `git merge-base --is-ancestor <branch> origin/main` succeeds → merged.
-   - Otherwise `git cherry origin/main <branch>`: only `-` lines → the same patches are already there; any `+` line → not merged.
+   - `git merge-base --is-ancestor <branch> origin/<base>` succeeds → merged.
+   - Otherwise `git cherry origin/<base> <branch>`: only `-` lines and no merge commits of its own (`git rev-list --merges origin/<base>..<branch>` is empty) → the same patches are already there; any `+` line → not merged.
    - `[gone]` only means the remote branch was deleted. It is not evidence of a merge.
 3. For a branch with a worktree, also check `git -C <worktree> status --porcelain --ignored`: uncommitted, untracked and ignored files all count. `git worktree remove` refuses the first two but deletes ignored files without asking.
 4. Present: **delete** (merged, nothing left) with `git worktree remove <path>` (no `--force`) and `git branch -d <branch>`; **review** (anything else) with the reason; leave worktrees locked by a running session alone.
 
 ## Notes
 
-- `-D` (force) discards unmerged work. Propose it only with a `git cherry` result of all `-`, and run it only when the user agrees.
+- `-D` (force) discards unmerged work and git does not check it. Propose it only with a `git cherry` result of all `-` and no merge commits on the branch, and run it only when the user agrees.
 - Never remove a worktree another session is using.

@@ -9,10 +9,11 @@ Run from the main checkout (not a linked worktree):
    when the main checkout is on it, has no local commits and no tracked changes. A
    fast-forward loses nothing; anything else is reported, not forced.
 2. Classify every local branch and linked worktree against origin/<base>:
-   - delete: merged (an ancestor, or every patch already there per `git cherry`), and its
-     worktree, if any, has no uncommitted, untracked or ignored files and is not in use.
-     The commands shown are the ones git itself refuses when that is not true
-     (`git worktree remove` without --force, `git branch -d`).
+   - delete: merged (an ancestor, or every patch already there per `git cherry` and no merge
+     commits of its own), and its worktree, if any, has no uncommitted, untracked or ignored
+     files and is not in use. `git worktree remove` (no --force) and `git branch -d` are
+     refused by git when that is not true; `git branch -D`, shown only with the cherry proof,
+     is not, so that one rests on this script's check.
    - review: needs a person — commits not on the base, an open PR, files left in the
      worktree (ignored ones too: `git worktree remove` deletes those silently), a stale lock.
    - in-use: locked by a live process, or checked out in the main checkout. Left alone.
@@ -25,6 +26,7 @@ Exit 0; exit 2 when run from a linked worktree or outside a repository.
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -117,7 +119,7 @@ def lock_pid(reason):
 def alive(pid):
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except (ProcessLookupError, OverflowError, ValueError):
         return False
     except PermissionError:
         return True
@@ -146,7 +148,8 @@ def sync(top, base, upstream, fetch, pull):
     notes = []
     if fetch and out(top, "remote", "get-url", "origin") is not None:
         rc, _, err = git(top, "fetch", "origin", "--prune")
-        notes.append("fetched origin (pruned)" if rc == 0 else f"fetch failed: {err.splitlines()[-1:]}")
+        notes.append("fetched origin (pruned)" if rc == 0 else
+                     f"fetch failed, so origin/* may be stale: {(err.splitlines() or [rc])[-1]}")
     if upstream == base:
         return notes
     current = out(top, "symbolic-ref", "--short", "-q", "HEAD")
@@ -181,12 +184,17 @@ def worktree_state(wt):
     reasons = []
     if wt["prunable"] or not os.path.isdir(wt["path"]):
         return ["the worktree directory is missing: `git worktree prune` cleans the record"]
-    status = lines(out(wt["path"], "status", "--porcelain", "--untracked-files=all"))
+    rc, stdout, err = git(wt["path"], "status", "--porcelain", "--untracked-files=all")
+    if rc:
+        return [f"`git status` failed in the worktree, so its files could not be checked: {err}"]
+    status = lines(stdout)
     if status:
         shown = ", ".join(s[3:] for s in status[:SHOW]) + (" ..." if len(status) > SHOW else "")
         reasons.append(f"{len(status)} uncommitted or untracked file(s): {shown}")
-    ignored = [s[3:] for s in lines(out(wt["path"], "status", "--porcelain", "--ignored"))
-               if s.startswith("!! ")]
+    rc, stdout, err = git(wt["path"], "status", "--porcelain", "--ignored", "--untracked-files=all")
+    if rc:
+        return reasons + [f"`git status --ignored` failed in the worktree: {err}"]
+    ignored = [s[3:] for s in lines(stdout) if s.startswith("!! ")]
     if ignored:
         shown = ", ".join(ignored[:SHOW]) + (" ..." if len(ignored) > SHOW else "")
         reasons.append(f"{len(ignored)} ignored path(s), which `git worktree remove` deletes "
@@ -203,6 +211,11 @@ def merge_state(top, rev, upstream):
         return False, "", [f"could not compare with {upstream}: {err}"]
     cherry = lines(out(top, "cherry", upstream, rev))
     plus = [c[2:] for c in cherry if c.startswith("+ ")]
+    merges = lines(out(top, "rev-list", "--merges", f"{upstream}..{rev}"))
+    if cherry and not plus and merges:
+        return False, "", [f"git cherry finds every patch in {upstream}, but the branch has "
+                           f"{len(merges)} merge commit(s) of its own, which git cherry does not "
+                           "compare (a conflict resolution would be lost by -D)"]
     if cherry and not plus:
         return True, f"cherry: all {len(cherry)} patch(es) already in {upstream}", []
     commits = lines(out(top, "log", "--format=%h %ad %s", "--date=short", f"{upstream}..{rev}"))
@@ -220,7 +233,7 @@ def classify(top, base, upstream, use_gh):
     current = out(top, "symbolic-ref", "--short", "-q", "HEAD")
     wts = worktrees(top)
     by_branch = {w["branch"]: w for w in wts if w["branch"]}
-    refs = lines(out(top, "for-each-ref", "--format=%(refname:short)%09%(upstream:track)%09"
+    refs = lines(out(top, "for-each-ref", "--format=%(refname:lstrip=2)%09%(upstream:track)%09"
                      "%(committerdate:short)", "refs/heads"))
     items = []
     for row in refs:
@@ -238,7 +251,7 @@ def classify(top, base, upstream, use_gh):
 def item(top, upstream, branch, track, date, wt, current, use_gh):
     it = {"branch": branch, "worktree": rel(top, wt["path"]) if wt else None,
           "upstream": track or None, "last_commit": date or None, "pr": None,
-          "class": None, "merged": None, "reasons": [], "commands": []}
+          "class": None, "merged": None, "reasons": [], "notes": [], "commands": []}
     if branch and branch == current:
         it.update({"class": "in-use", "reasons": ["checked out in the main checkout"]})
         return it
@@ -266,16 +279,23 @@ def item(top, upstream, branch, track, date, wt, current, use_gh):
         return it
     it["class"] = "delete"
     if wt:
-        it["commands"].append(f"git worktree remove {it['worktree']}")
+        it["commands"].append(f"git worktree remove {shlex.quote(it['worktree'])}")
     if branch:
-        it["commands"].append(f"git branch -d {branch}" if how == "ancestor"
-                              else f"git branch -D {branch}  # {how}")
+        if how != "ancestor":
+            it["commands"].append(f"git branch -D {shlex.quote(branch)}  # {how}; git does not "
+                                  "check -D")
+        else:
+            it["commands"].append(f"git branch -d {shlex.quote(branch)}")
+            if git(top, "merge-base", "--is-ancestor", branch, "HEAD")[0] != 0:
+                it["notes"].append(f"`git branch -d` compares with the main checkout's HEAD, which "
+                                   f"does not contain this branch yet: update the base from "
+                                   f"{upstream} first, or git refuses")
     return it
 
 
 # -------------------------------------------------------------------- report
 
-TITLES = {"delete": "delete — merged, nothing left behind (git refuses these commands otherwise)",
+TITLES = {"delete": "delete — merged, nothing left behind",
           "review": "review — needs your decision",
           "in-use": "in-use — left alone"}
 
@@ -301,6 +321,8 @@ def report(top, upstream, notes, items):
                 print(f"      merged: {i['merged']}")
             for r in i["reasons"]:
                 print(f"      - {r}")
+            for n in i["notes"]:
+                print(f"      note: {n}")
             for c in i["commands"]:
                 print(f"      $ {c}")
     print("\nnothing was deleted")

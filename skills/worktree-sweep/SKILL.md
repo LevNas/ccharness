@@ -7,7 +7,7 @@ allowed-tools: Bash, Read
 
 # worktree-sweep
 
-The decision whether a branch or worktree can go is the same every time for the same input, so it is computed, not judged. The script never deletes; git's own refusals (`git worktree remove` without `--force`, `git branch -d`) stay the last check when the user runs the commands.
+The decision whether a branch or worktree can go is the same every time for the same input, so it is computed, not judged. The script never deletes. For most commands git's own refusal stays the last check when the user runs them (`git worktree remove` without `--force`, `git branch -d`); a `git branch -D` line is the exception, resting on the `git cherry` proof shown next to it.
 
 ## Steps
 
@@ -20,10 +20,10 @@ The decision whether a branch or worktree can go is the same every time for the 
 
    It fetches with `--prune`, fast-forwards the base branch when that loses nothing, and prints three groups. `--no-pull` leaves the base branch alone, `--no-gh` skips the pull request lookup, `--json` gives machine-readable output, `--target DIR` inspects another repository.
 3. Show the report to the user as it is:
-   - **delete**: merged into the base (an ancestor, or every patch already there per `git cherry`), and its worktree has nothing uncommitted, untracked or ignored. Give the commands; run them only when the user says so. A `git branch -D` line carries the `git cherry` proof.
+   - **delete**: merged into the base (an ancestor, or every patch already there per `git cherry` with no merge commits of its own), and its worktree has nothing uncommitted, untracked or ignored. Give the commands; run them only when the user says so. A `git branch -D` line carries the `git cherry` proof; git does not check `-D`. A `note:` line says when `git branch -d` would be refused only because the main checkout's base branch is behind.
    - **review**: give the reason and what the user needs to decide - the open PR, the commits not on the base (shown with their subjects and dates), the files left in the worktree. Ignored files matter because `git worktree remove` deletes them without asking.
    - **in-use**: leave alone; another session holds the lock, or the branch is checked out in the main checkout.
-4. Never add `--force` to `git worktree remove`, and never turn a review item into a deletion on your own reading. If git refuses a command, report the refusal; it means the item was not what the report said.
+4. Never add `--force` to `git worktree remove`, and never turn a review item into a deletion on your own reading. If git refuses a command, report the refusal: unless a `note:` line explains it, the item was not what the report said.
 
 ## Notes
 

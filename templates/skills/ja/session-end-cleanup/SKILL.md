@@ -27,13 +27,13 @@ allowed-tools: Bash, Read
 
 1. `git fetch origin --prune` のあと、メインの checkout でベースブランチを `git pull --ff-only` します（手元のベースブランチが古いと、あとの判定が狂います）。
 2. ブランチごとに、表示ではなく中身で判定します。
-   - `git merge-base --is-ancestor <branch> origin/main` が成功 → マージ済み
-   - 失敗なら `git cherry origin/main <branch>`: すべて `-` → 同じ内容が取り込み済み。`+` が 1 つでもある → 未マージ
+   - `git merge-base --is-ancestor <branch> origin/<base>` が成功 → マージ済み
+   - 失敗なら `git cherry origin/<base> <branch>`: すべて `-` で、ブランチ自身のマージ commit が無い（`git rev-list --merges origin/<base>..<branch>` が空）→ 同じ内容が取り込み済み。`+` が 1 つでもある → 未マージ
    - `[gone]` は「リモートのブランチが消えた」という意味だけで、マージ済みの証拠にはなりません。
 3. worktree があるブランチは、`git -C <worktree> status --porcelain --ignored` も確かめます。未コミット・未追跡・gitignore 済みのファイルがすべて対象です。`git worktree remove` は前の 2 つなら断りますが、gitignore 済みのファイルは確認なしに消します。
 4. 示し方: **delete**（マージ済みで何も残っていない）には `git worktree remove <path>`（`--force` なし）と `git branch -d <branch>`。**review**（それ以外）には理由を添えます。動いているセッションがロックしている worktree には触れません。
 
 ## 注意
 
-- `-D`（強制削除）はマージされていない作業を捨てます。`git cherry` がすべて `-` のときだけ提案し、利用者が同意したときだけ実行します。
+- `-D`（強制削除）はマージされていない作業を捨て、git も確かめません。`git cherry` がすべて `-` でマージ commit も無いときだけ提案し、利用者が同意したときだけ実行します。
 - 別のセッションが使用中の worktree は削除しません。
