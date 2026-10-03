@@ -26,6 +26,7 @@ The split follows one question: *would starting work without knowing this cause 
 | `templates/settings.snippet.json` | template | Standard-tier deny rules: force push, `reset --hard`, `clean -f`, worktree-discarding checkout/restore, `chmod -R 777` |
 | `templates/CLAUDE.md.snippet.{ja,en}.md` | template | Workflow Rules, Response Quality, Safety, Output Approach, Host Resource Constraints, Compact Instructions |
 | `hooks/pretool_bash_guard.py` | PreToolUse(Bash) hook | Hard-deny floor: `rm -r` on root/home/cwd/glob (also as `/bin/rm`, `sudo rm`, `bash -c`), fork bomb, `mkfs`, `dd`/redirect onto a block device, `shred` |
+| `hooks/worktree_isolation_hint.py` | PostToolUse(EnterWorktree), PostToolUseFailure(Bash) hook | For a session isolated in a worktree: once on entry, the Bash forms that Claude Code's isolation check refuses and the forms that pass; on a refusal, the rewrite for that kind (script file, literal values, Edit instead of sed, one git command per call). Adds context only; never blocks or predicts the check |
 | `scripts/worktree_sweep.py` + `skills/worktree-sweep` | inventory | Run from the main checkout: fetch, fast-forward the base branch when that loses nothing, and classify local branches and worktrees as delete (merged by ancestry or `git cherry`, nothing uncommitted, untracked or ignored left), review (with the reason) or in-use. Report only; `session-end-cleanup` calls it |
 | `scripts/measure_always_on.py` + `skills/harness-budget` | measurement | Bytes of always-on context: CLAUDE.md, rules, skill descriptions (capped at `skillListingMaxDescChars`) across project, user and enabled plugins; CLAUDE.md line counts against the official 200-line guideline; the skill listing estimated against its budget (1% of the context window in characters) |
 
@@ -118,7 +119,7 @@ Claude Code already separates user (`~/.claude/`), shared project (`.claude/`), 
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests   # floor hook + deny-rule snippet
+python3 -m unittest discover -s tests   # floor hook + deny-rule snippet + worktree isolation hints
 bash tests/test_scaffold.sh             # scaffold behaviour, settings handling, template budget
 python3 tests/test_measure.py          # always-on budget measurement
 python3 tests/test_worktree_sweep.py   # branch/worktree inventory against real repositories
