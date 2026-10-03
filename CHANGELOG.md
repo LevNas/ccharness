@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+The end-of-session tidy-up (pull the base branch, check what is left, delete) was done by hand each time and kept going wrong in the same ways: `[gone]` read as merged, a check whose grep returned a false negative, a stale local main, a forgotten branch. The decision is the same for the same input, so it is now computed.
+
+- `scripts/worktree_sweep.py` + `skills/worktree-sweep` (new): from the main checkout, fetch with `--prune`, fast-forward the base branch when it has no local commits and no tracked changes, and classify every local branch and linked worktree:
+  - **delete**: an ancestor of `origin/<base>`, or every patch already there per `git cherry` and no merge commits of its own (then `git branch -D` with that proof; git does not check `-D`). Its worktree must have no uncommitted, untracked or ignored files, a working `git status`, and no live lock. Otherwise the commands are `git worktree remove` without `--force` and `git branch -d`, which git refuses if the report is wrong. Names in the commands are shell-quoted.
+  - **review**: commits not on the base (with subjects and dates), an open PR (`gh`, optional), files left in the worktree (ignored ones too, since `git worktree remove` deletes those without asking), a lock whose pid is not running.
+  - **in-use**: locked by a running process, or checked out in the main checkout.
+  - Report only: nothing is deleted. Refuses to run from a linked worktree (exit 2), so a session isolated in a worktree does not read other worktrees around its isolation.
+- `session-end-cleanup` template (ja/en): calls `ccharness:worktree-sweep`. The manual fallback no longer treats an upstream marked `[gone]` as safe to delete; it decides by `--is-ancestor`, then `git cherry`, and checks ignored files.
+- Tests: `tests/test_worktree_sweep.py` (31 checks) builds a bare remote, a main checkout that has fallen behind and worktrees for each case (including a branch with its own merge commit, a worktree whose `git status` fails, a detached worktree, a path with a space, a tag named like a branch, and a `master` base with no remote), and checks each classification, the fast-forward, and that no branch or worktree disappears.
+
 ## 0.3.1
 
 The skill listing does not come back after compaction (https://code.claude.com/docs/en/context-window, "What survives compaction"): only the bodies of invoked skills are re-injected. A skill that has not been used yet in the session is then out of Claude's sight unless something re-injected names it.
