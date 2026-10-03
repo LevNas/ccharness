@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+After `EnterWorktree`, Claude Code checks each Bash command's literal text and refuses git it cannot show stays inside the worktree: a heredoc or `python3 -c` whose text names git, a variable where an option may stand, a loop, a long chain. Sessions kept hitting the check two or three times in a row with variations of the same form, although the rewrite is the same every time.
+
+- `hooks/worktree_isolation_hint.py` (new), context only:
+  - PostToolUse on `EnterWorktree`: once, the forms that are refused and the forms that pass.
+  - PostToolUseFailure on Bash: when the error is the isolation refusal ("This session is isolated in the worktree"), the rewrite for that kind of refusal, plus "do not retry a variation of the same form". The kinds come from refusals worded by Claude Code in real sessions: a heredoc or `-c` script (write a file), a value computed at runtime, including `-C` and `cd` targets (spell it out), sed (use Edit), `git -C` to the shared checkout (run git in the worktree, or leave it first), gh with inline text (`--body-file`), and a command too complex to verify (one git command per call).
+  - It does not predict the refusal in PreToolUse: the check is Claude Code's own and changes with it, so a guess would block good commands or miss. Fail-open.
+- Tests: `tests/test_worktree_isolation_hint.py` (13 checks) with refusal texts worded as in real sessions; no advice suggests `git -C` to another checkout or a shell variable in a path, both of which the check refuses.
+
 ## 0.4.0
 
 The end-of-session tidy-up (pull the base branch, check what is left, delete) was done by hand each time and kept going wrong in the same ways: `[gone]` read as merged, a check whose grep returned a false negative, a stale local main, a forgotten branch. The decision is the same for the same input, so it is now computed.
