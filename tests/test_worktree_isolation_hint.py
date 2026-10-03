@@ -23,6 +23,13 @@ VARIABLE = (f"This session is isolated in the worktree {WT}, but this command ru
             f"character is matched or computed rather than spelled out, may begin with -; put -- before it) in a "
             f"plain command, so what it runs cannot be shown not to be git. Refusing to run it — a "
             f"worktree-isolated session's git operations must target its own worktree. Run the plain command from {WT}.")
+SHARED_C = (f"This session is isolated in the worktree {WT}, but this command redirects git to the shared checkout "
+            f"via -C. Refusing to run it — a worktree-isolated session's git operations must target its own worktree.")
+GH_TEXT = (f"This session is isolated in the worktree {WT}, but this command runs gh with the text of a body that "
+           f"names git. Refusing to run it — a worktree-isolated session's git operations must target its own worktree.")
+CD = (f"This session is isolated in the worktree {WT}, but this command changes directory to a location computed "
+      f"at runtime before running git. Refusing to run it — a worktree-isolated session's git operations must "
+      f"target its own worktree.")
 
 
 def run(payload):
@@ -45,8 +52,11 @@ class OnEnter(unittest.TestCase):
         event, text = run({"hook_event_name": "PostToolUse", "tool_name": "EnterWorktree",
                            "tool_input": {"name": "x"}, "tool_response": {}})
         self.assertEqual(event, "PostToolUse")
-        for words in ("heredoc", "python3 -c", "Edit/Write", "ExitWorktree"):
+        for words in ("heredoc", "python3 -c", "Edit/Write", "ExitWorktree", "--body-file"):
             self.assertIn(words, text)
+        # `git -C` to the main checkout is itself refused; a shell variable in a path would be too.
+        self.assertNotIn("git -C <path>", text)
+        self.assertNotIn("$CLAUDE_JOB_DIR", text)
 
     def test_other_tools_get_nothing(self):
         self.assertIsNone(run({"hook_event_name": "PostToolUse", "tool_name": "Bash", "tool_input": {}}))
@@ -70,6 +80,21 @@ class OnRefusal(unittest.TestCase):
         _, text = failure(VARIABLE)
         self.assertIn("Spell values out", text)
         self.assertIn("Edit tool", text)
+
+    def test_git_c_to_the_shared_checkout_points_to_leaving_the_worktree(self):
+        _, text = failure(SHARED_C)
+        self.assertIn("run git in the worktree itself", text)
+        self.assertNotIn("one git command per call", text, "a specific rewrite replaces the general one")
+
+    def test_gh_with_inline_text_points_to_a_body_file(self):
+        self.assertIn("--body-file", failure(GH_TEXT)[1])
+
+    def test_computed_cd_points_to_literal_values(self):
+        self.assertIn("computed `-C` / `cd` targets", failure(CD)[1])
+
+    def test_no_rewrite_suggests_a_shell_variable(self):
+        for error in (HEREDOC, COMPLEX, VARIABLE, SHARED_C, GH_TEXT, CD):
+            self.assertNotIn("$CLAUDE_JOB_DIR", failure(error)[1])
 
     def test_unknown_wording_still_gets_the_general_rewrite(self):
         _, text = failure(f"This session is isolated in the worktree {WT}, but this command does something new.")

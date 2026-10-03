@@ -6,9 +6,9 @@ After `EnterWorktree`, Claude Code checks each Bash command's literal text and r
 
 - `hooks/worktree_isolation_hint.py` (new), context only:
   - PostToolUse on `EnterWorktree`: once, the forms that are refused and the forms that pass.
-  - PostToolUseFailure on Bash: when the error is the isolation refusal ("This session is isolated in the worktree"), the rewrite for that kind of refusal (script file instead of heredoc or `-c`; literal values instead of variables and loops; Edit instead of sed; one git command per call, and leaving the worktree for another repository), plus "do not retry a variation of the same form".
+  - PostToolUseFailure on Bash: when the error is the isolation refusal ("This session is isolated in the worktree"), the rewrite for that kind of refusal, plus "do not retry a variation of the same form". The kinds come from refusals worded by Claude Code in real sessions: a heredoc or `-c` script (write a file), a value computed at runtime, including `-C` and `cd` targets (spell it out), sed (use Edit), `git -C` to the shared checkout (run git in the worktree, or leave it first), gh with inline text (`--body-file`), and a command too complex to verify (one git command per call).
   - It does not predict the refusal in PreToolUse: the check is Claude Code's own and changes with it, so a guess would block good commands or miss. Fail-open.
-- Tests: `tests/test_worktree_isolation_hint.py` (9 checks) with refusal texts worded as in real sessions.
+- Tests: `tests/test_worktree_isolation_hint.py` (13 checks) with refusal texts worded as in real sessions; no advice suggests `git -C` to another checkout or a shell variable in a path, both of which the check refuses.
 
 ## 0.4.0
 
