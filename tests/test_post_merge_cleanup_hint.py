@@ -26,13 +26,22 @@ def bash(command, event="PostToolUse", tool="Bash"):
 
 
 class Hint(unittest.TestCase):
-    def test_merge_gets_the_cleanup_steps_in_order(self):
+    def test_merge_gets_both_cases_in_order(self):
         event, text = bash("gh pr merge 12 --merge")
         self.assertEqual(event, "PostToolUse")
-        positions = [text.index(w) for w in ("1. ", "uncommitted or untracked", "2. ", "ExitWorktree, action keep",
-                                              "3. ", "worktree-sweep", "4. ", "--force")]
+        positions = [text.index(w) for w in ("(a) in the worktree of the merged branch", "uncommitted or untracked",
+                                              "ExitWorktree, action keep", "worktree-sweep",
+                                              "(b) in the worktree of the PR's base branch", "git pull --ff-only",
+                                              "also fast-forwards the PR's base branch", "--force")]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("never add `--force`", text)
+        self.assertIn("only when the user says so", text)
+
+    def test_hint_names_no_other_plugin_and_stays_small(self):
+        _, text = bash("gh pr merge 12")
+        for name in ("ccmemo", "ccorch", "ccevolve", "ccaudit", "ccwrite", "capture", "review plugin"):
+            self.assertNotIn(name, text)
+        self.assertLess(len(text), 2000)
 
     def test_global_options_and_chains_still_match(self):
         for cmd in ("gh -R owner/repo pr merge 12", "gh pr merge --squash --delete-branch",

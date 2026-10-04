@@ -9,7 +9,15 @@ allowed-tools: Bash, Read, Edit, Write
 
 ## Trigger
 
-When the user signals the end of a session ("that's all for today", "thanks, wrapping up"), run this routine before committing, without waiting for an explicit instruction. A clear milestone in the work is also a valid trigger.
+When the user signals the end of a session ("that's all for today", "thanks, wrapping up"), run this routine before committing, without waiting for an explicit instruction. A clear milestone in the work is also a valid trigger, and so is a merge-time review returning pass or fail.
+
+## When a merge-time review fails
+
+The session-wrap still runs. Record the verdict, a short summary of the blocking findings, the next step and how many fix rounds ran: in the task or progress file and as an issue comment; as knowledge only when there is a lesson. Put these records on a **separate branch and PR into the default branch**, not on the feature branch, which may be abandoned.
+
+## Termination
+
+A session-wrap's own branch or PR is never wrapped again, whatever its review returns. If its review fails, fix it in that PR.
 
 ## Steps (in order)
 
