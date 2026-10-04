@@ -4,8 +4,8 @@
 
 The tidy-up after a merge (leave the worktree, update the base, remove what is left) is computed by `worktree-sweep`, whose description says "after a merge", yet in real sessions it was never called: five merges in a row were cleaned up by hand, and the skill listing does not come back after compaction. Prose cannot create the moment to call it, so a hook does.
 
-- `hooks/post_merge_cleanup_hint.py` (new), PostToolUse on Bash, context only: when the command's words (`shlex`) contain `gh` ... `pr` ... `merge` in order, it returns the cleanup steps: check the worktree for uncommitted or untracked files, leave it with ExitWorktree (action keep), run `worktree-sweep` from the main checkout, run its delete-class commands only when the user says so and never with `--force`.
-  - `--auto` gives no hint (the PR is not merged yet). Success is not checked: PostToolUse fires only on exit 0. The tool result is not read, since its field name differs between sources.
+- `hooks/post_merge_cleanup_hint.py` (new), PostToolUse on Bash, context only: when one simple command of the Bash command (`shlex`, split at `;`, `&&`, `||`, `|`, `&`, newline) is `gh` [options] `pr` [options] `merge`, it returns the cleanup steps: check the worktree for uncommitted or untracked files, leave it with ExitWorktree (action keep), run `worktree-sweep` from the main checkout, run its delete-class commands only when the user says so and never with `--force`.
+  - `--auto` and `--disable-auto` in that command give no hint (nothing was merged). Success is not checked: PostToolUse fires only on exit 0. The tool result is not read, since its field name differs between sources.
   - It does not run `worktree_sweep.py`: the session is usually in a linked worktree, which the script refuses, and the script fetches and fast-forwards, side effects a hook should not have. It deletes nothing. Fail-open.
 - `worktree-sweep` description: says that the post-merge hint calls it.
 - Tests: `tests/test_post_merge_cleanup_hint.py`.

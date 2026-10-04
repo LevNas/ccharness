@@ -42,15 +42,26 @@ class Hint(unittest.TestCase):
     def test_sweep_script_is_not_suggested_as_a_hook_action(self):
         self.assertNotIn("worktree_sweep.py", bash("gh pr merge 1")[1])
 
+    def test_option_after_the_number_and_env_prefix_match(self):
+        for cmd in ("gh pr merge 1 -R owner/repo", "GH_HOST=h gh pr merge 1", "gh --repo o/r pr merge 2"):
+            self.assertIsNotNone(bash(cmd), cmd)
+
     def test_auto_merge_gets_nothing(self):
-        self.assertIsNone(bash("gh pr merge 12 --auto --squash"))
-        self.assertIsNone(bash("gh pr merge --auto"))
+        for cmd in ("gh pr merge 12 --auto --squash", "gh pr merge --auto", "gh pr merge 1 --auto=true",
+                    "gh pr merge 1 --disable-auto"):
+            self.assertIsNone(bash(cmd), cmd)
+
+    def test_auto_false_and_other_segments_do_not_suppress(self):
+        self.assertIsNotNone(bash("gh pr merge 1 --auto=false"))
+        self.assertIsNotNone(bash("gh pr merge 1 && gh pr merge 2 --auto"), "PR 1 did merge")
 
 
 class Quiet(unittest.TestCase):
     def test_other_commands_get_nothing(self):
         for cmd in ("gh pr view 12", "gh pr create --title x", "gh pr list --state merged", "git merge main",
-                    "gh issue merge", "merge gh pr", "ls"):
+                    "gh issue merge", "merge gh pr", "ls", "gh pr view 3; git merge x",
+                    "gh pr list && git merge main", "gh api x && gh pr view 1 && git merge b",
+                    "echo gh pr merge", 'echo "gh pr merge 1"', "gh pr view 1\ngit merge x"):
             self.assertIsNone(bash(cmd), cmd)
 
     def test_other_events_and_tools_get_nothing(self):

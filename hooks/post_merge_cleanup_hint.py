@@ -9,10 +9,13 @@ Context only: it never runs the sweep (the session is usually inside a linked wo
 refuses, and the script fetches and fast-forwards, side effects a hook should not have) and it never
 deletes anything. The decision to delete stays with the user.
 
-Matching: the command, split into words with shlex, contains `gh` ... `pr` ... `merge` in that order
-(`gh pr merge 12 --merge`, `gh -R owner/repo pr merge 12`). `--auto` suppresses the hint: the PR is not
-merged yet. Success is not checked: PostToolUse fires only for a command that exited 0; a failure goes to
-PostToolUseFailure. The tool result is not read (its field name differs between sources).
+Matching: the command is split with shlex into simple commands (at `;`, `&&`, `||`, `|`, `&`, newline), and
+one of them must be `gh` [options] `pr` [options] `merge` (`gh pr merge 12 --merge`,
+`gh -R owner/repo pr merge 12`), so `gh pr view 3; git merge x` does not match. `--auto` and
+`--disable-auto` in that same command suppress the hint: nothing was merged. Success is not checked:
+PostToolUse fires only for a command that exited 0; a failure goes to PostToolUseFailure. A merge queued
+behind a merge queue or branch protection also exits 0, so the hint can come before the PR is merged. The
+tool result is not read (its field name differs between sources).
 
 Fail-open: malformed input, an unparsable command or any error exits 0 without output. Turn it off with the
 official settings (`disableAllHooks`, or `enabledPlugins` for ccharness), as for the other hooks.
@@ -34,22 +37,55 @@ HINT = (
 )
 
 
+SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&"}
+VALUE_OPTIONS = {"-R", "--repo"}  # gh options whose value is the next word
+NOT_MERGED_YET = {"--auto", "--auto=true", "--disable-auto", "--disable-auto=true"}
+
+
+def split_segments(command: str) -> list[list[str]]:
+    """Words of the command, one list per simple command (split at ; && || | & and newlines)."""
+    lexer = shlex.shlex(command.replace("\n", " ; "), posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    segments: list[list[str]] = [[]]
+    for word in lexer:
+        if word in SEPARATORS:
+            segments.append([])
+        else:
+            segments[-1].append(word)
+    return segments
+
+
+def segment_is_pr_merge(words: list[str]) -> bool:
+    """`gh [options] pr [options] merge ...` as one command, without --auto / --disable-auto."""
+    i = 0
+    while i < len(words) and "=" in words[i] and not words[i].startswith("-"):
+        i += 1  # leading VAR=value
+    if i >= len(words) or words[i] != "gh":
+        return False
+    expected = ["pr", "merge"]
+    k = i + 1
+    while k < len(words):
+        w = words[k]
+        k += 1
+        if w in VALUE_OPTIONS:
+            k += 1  # skip the value
+        elif w.startswith("-"):
+            continue
+        elif w != expected[0]:
+            return False
+        else:
+            expected.pop(0)
+            if not expected:
+                return not any(a in NOT_MERGED_YET for a in words[k:])
+    return False
+
+
 def is_pr_merge(command: str) -> bool:
     try:
-        words = shlex.split(command)
+        segments = split_segments(command)
     except ValueError:
         return False
-    if "--auto" in words:
-        return False
-    state = 0
-    for w in words:
-        if state == 0 and w == "gh":
-            state = 1
-        elif state == 1 and w == "pr":
-            state = 2
-        elif state == 2 and w == "merge":
-            return True
-    return False
+    return any(segment_is_pr_merge(s) for s in segments)
 
 
 def context(payload: dict) -> str | None:
