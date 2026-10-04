@@ -54,7 +54,7 @@ Leaf agents for steps that do not need the main session's model. Each is a `ccha
 
 A single known URL needs no leaf: fetch it directly with WebFetch. The former `url-extract` leaf is retired, since WebFetch's tool description states that it answers through a small fast model, so a haiku wrapper would summarize twice and add the cost of a spawn.
 
-These came from ccorch (0.4.0), which, if installed, keeps the `/ccor` tmux panes for splitting work into separate sessions. While ccorch 0.4.0 is still installed alongside, each spawn is recorded in both ledgers; this is harmless.
+These came from ccorch (0.4.0), which, if installed, keeps the `/ccor` tmux panes for splitting work into separate sessions. While ccorch 0.4.0 is still installed alongside, each spawn is recorded in both ledgers (harmless), and its `/ccor-parallel` (which still uses `--force` and `branch -D`) and its tier guard overlap with this release; ccorch 0.5.0 removes them, and until then use `parallel-worktree`.
 
 Scaffolded rule files start with a marker line, `<!-- ccharness template v0.2.0 (ja) -->` (skills carry it right after the frontmatter), so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
 

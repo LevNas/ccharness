@@ -6,7 +6,7 @@ The ledger is the thread-name → agentId registry for subagents. Agents do not 
 
 `<main checkout>/.claude/ccharness/ledger.jsonl` — one JSON object per line.
 
-The hook resolves the main checkout as the parent of `git rev-parse --path-format=absolute --git-common-dir`, run in the `cwd` of the hook input. If git fails it falls back to `CLAUDE_PROJECT_DIR`, then to `cwd`. This matters in a session isolated in a linked worktree: a ledger written inside the worktree would be an ignored file there, and `worktree-sweep` classes a worktree with ignored files as "review", so every worktree that spawned an agent would stop being delete-class. In the main checkout the file is shared by all sessions of the repository; use `session_id` to tell them apart.
+The hook resolves the main checkout as the parent of `git rev-parse --path-format=absolute --git-common-dir`, run in the `cwd` of the hook input, only when that directory is named `.git`. Otherwise (a submodule's `.git/modules/<name>`, `--separate-git-dir`, a bare repository with worktrees) the common dir is not inside a work tree, so it uses `git rev-parse --show-toplevel`, then `CLAUDE_PROJECT_DIR`, then `cwd`. Only an existing directory is used, and the hook never creates a directory tree for a path that is gone: an unchanged worker worktree is removed by the harness while SubagentStop may still carry its path, and recreating it would leave a stray directory that `worktree-sweep` reports. With no existing candidate, nothing is written. This matters in a session isolated in a linked worktree: a ledger written inside the worktree would be an ignored file there, and `worktree-sweep` classes a worktree with ignored files as "review", so every worktree that spawned an agent would stop being delete-class. In the main checkout the file is shared by all sessions of the repository; use `session_id` to tell them apart.
 
 Operational state, not knowledge: **every repository that uses it should add `.claude/ccharness/` to its `.gitignore`** (this repository does). There is no automatic rotation; truncate or archive the file when a project accumulates history you no longer need.
 
@@ -22,9 +22,9 @@ Written by `hooks/agent_ledger.py`: registered for PostToolUse (matcher `Agent|T
  "model":null,"background":true,"thread":"implement parser task"}
 ```
 
-- `agent_id` — extracted from the spawn response text (`agentId: <id>`); `null` when the pattern is absent. Observed in practice: background spawns carry the id in the response text, **synchronous spawns do not** — their launch record has `agent_id: null` and the id arrives on the matching `stop` record instead (SubagentStop input). Join launch↔stop via `agent_type` plus timestamps when resuming a synchronous thread.
+- `agent_id` — extracted from the spawn response text: the LAST `agentId: <id>` match (the harness trailer is at the end; earlier matches can be text the subagent wrote); `null` when the pattern is absent. Observed in practice: background spawns carry the id in the response text, **synchronous spawns do not** — their launch record has `agent_id: null` and the id arrives on the matching `stop` record instead (SubagentStop input). Join launch↔stop via `agent_type` plus timestamps when resuming a synchronous thread.
 - `model` — only an explicit per-call override; `null` means the agent definition's frontmatter (or inheritance) decided.
-- `background` — `true` when the call does not say otherwise.
+- `background` — `run_in_background` as given in the call; `null` when the call did not say (no default is assumed).
 - `thread` — the short `description` parameter only. Prompt bodies are deliberately not persisted (secrets baseline for on-disk state).
 
 ### `stop`
@@ -32,8 +32,10 @@ Written by `hooks/agent_ledger.py`: registered for PostToolUse (matcher `Agent|T
 ```json
 {"schema":"ccharness.ledger/1","ts":"2026-10-04T12:05:00Z","event":"stop",
  "session_id":"...","agent_id":"a1b2c3...","agent_type":"ccharness:worktree-worker",
- "stop_reason":"end_turn"}
+ "stop_reason":null}
 ```
+
+`stop_reason` is not part of the documented SubagentStop input. The field is kept for the day it appears; it is `null` when the input has none (as in the example), and any value it carries is copied as given.
 
 ## Parallel limit
 

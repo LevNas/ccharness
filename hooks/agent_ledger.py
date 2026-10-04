@@ -12,11 +12,16 @@ and is null when absent; synchronous spawns usually carry no id there, and the i
 `thread` is the short `description` parameter. Prompt bodies are never written.
 
 File: `<main checkout>/.claude/ccharness/ledger.jsonl`. The main checkout is the parent of
-`git rev-parse --path-format=absolute --git-common-dir`, run in the hook input's `cwd`. In a session isolated
-in a linked worktree a ledger written inside the worktree would be an ignored file there, and `worktree-sweep`
-classes a worktree with ignored files as "review", so every worktree that spawned an agent would stop being
-delete-class. If git fails, the directory falls back to CLAUDE_PROJECT_DIR, then to `cwd`. A repository that
-uses this should add `.claude/ccharness/` to its .gitignore.
+`git rev-parse --path-format=absolute --git-common-dir`, run in the hook input's `cwd`, used only when that
+directory is named `.git` (otherwise `git rev-parse --show-toplevel`). In a session isolated in a linked
+worktree a ledger written inside the worktree would be an ignored file there, and `worktree-sweep` classes a
+worktree with ignored files as "review", so every worktree that spawned an agent would stop being
+delete-class. If git gives nothing, the directory falls back to CLAUDE_PROJECT_DIR, then to `cwd`. Only an
+existing directory is used: a path that is gone (a removed worker worktree) is never recreated, and with no
+existing candidate nothing is written. A repository that uses this should add `.claude/ccharness/` to its
+.gitignore.
+`background` is `tool_input.run_in_background` as given, null when absent. `stop_reason` is not a documented
+SubagentStop field; it is kept and is null when absent.
 
 Limits: no rotation; the file only grows. The count `launches - stops` is best effort (a resumed agent stops
 again) and nothing in ccharness depends on it.
@@ -36,25 +41,42 @@ SCHEMA = "ccharness.ledger/1"
 AGENT_ID_RE = re.compile(r"agentId: ([A-Za-z0-9_-]+)")
 
 
-def main_checkout(cwd: str | None) -> str | None:
-    """Directory that owns the ledger: main checkout, else CLAUDE_PROJECT_DIR, else cwd."""
-    if cwd:
-        try:
-            out = subprocess.run(
-                ["git", "-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                capture_output=True, text=True, timeout=5)
-            common = out.stdout.strip()
-            if out.returncode == 0 and common:
-                return os.path.dirname(common.rstrip("/"))
-        except Exception:
-            pass
-    return os.environ.get("CLAUDE_PROJECT_DIR") or cwd or None
+def git_out(cwd: str, *args: str) -> str | None:
+    try:
+        out = subprocess.run(["git", "-C", cwd, "rev-parse", *args], capture_output=True, text=True, timeout=5)
+        return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+    except Exception:
+        return None
+
+
+def ledger_root(cwd: str | None) -> str | None:
+    """Existing directory that owns the ledger, or None (then nothing is written).
+
+    Candidates, first existing directory wins: the main checkout, CLAUDE_PROJECT_DIR, cwd. The main checkout
+    is the parent of the git common dir only when that dir is named `.git`; for a submodule
+    (`.git/modules/<name>`), `--separate-git-dir` or a bare repository the common dir is not inside a work
+    tree, so `--show-toplevel` is used instead. A path that no longer exists (an unchanged worker worktree is
+    removed by the harness, and SubagentStop may still carry its path) is never created again.
+    """
+    candidates: list[str | None] = []
+    if cwd and os.path.isdir(cwd):
+        common = git_out(cwd, "--path-format=absolute", "--git-common-dir")
+        if common and os.path.basename(common.rstrip("/")) == ".git":
+            candidates.append(os.path.dirname(common.rstrip("/")))
+        else:
+            candidates.append(git_out(cwd, "--show-toplevel"))
+    candidates += [os.environ.get("CLAUDE_PROJECT_DIR"), cwd]
+    for path in candidates:
+        if path and os.path.isdir(path):
+            return path
+    return None
 
 
 def agent_id_of(response) -> str | None:
+    """Last `agentId: <id>` in the response: the harness trailer comes last, earlier matches may be quoted text."""
     text = response if isinstance(response, str) else json.dumps(response, ensure_ascii=False)
-    match = AGENT_ID_RE.search(text)
-    return match.group(1) if match else None
+    matches = AGENT_ID_RE.findall(text)
+    return matches[-1] if matches else None
 
 
 def record(payload: dict) -> dict | None:
@@ -73,7 +95,7 @@ def record(payload: dict) -> dict | None:
             "agent_id": agent_id_of(payload.get("tool_response")),
             "agent_type": tool_input.get("subagent_type") or "claude",
             "model": tool_input.get("model"),
-            "background": tool_input.get("run_in_background", True),
+            "background": tool_input.get("run_in_background"),
             "thread": tool_input.get("description")}
 
 
@@ -86,7 +108,7 @@ def main() -> int:
         if entry is None:
             return 0
         cwd = payload.get("cwd")
-        root = main_checkout(cwd if isinstance(cwd, str) else None)
+        root = ledger_root(cwd if isinstance(cwd, str) else None)
         if not root:
             return 0
         directory = os.path.join(root, ".claude", "ccharness")

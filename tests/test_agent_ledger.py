@@ -95,7 +95,55 @@ class Ledger(unittest.TestCase):
         (rec,) = self.records(main)
         self.assertEqual(rec["agent_id"], "zz9")
         self.assertEqual(rec["agent_type"], "claude")
-        self.assertIs(rec["background"], True)
+        self.assertIsNone(rec["background"])  # recorded as given: null when the call did not say
+
+    def test_last_agent_id_wins_over_quoted_text(self):
+        main = self.repo()
+        self.run_hook(self.launch(main, "the subagent wrote: agentId: fake-1 earlier\nagentId: real-2"))
+        self.run_hook(self.launch(main, {"content": [{"type": "text", "text": "agentId: fake-1 ... agentId: real-3"}]}))
+        self.assertEqual([r["agent_id"] for r in self.records(main)], ["real-2", "real-3"])
+
+    def test_stop_reason_absent_is_null(self):
+        main = self.repo()
+        self.run_hook({"hook_event_name": "SubagentStop", "cwd": main, "agent_id": "a1"})
+        (rec,) = self.records(main)
+        self.assertIsNone(rec["stop_reason"])
+
+    def test_common_dir_not_named_dot_git_stays_out_of_git_metadata(self):
+        sep = os.path.join(self.tmp, "sep.git")
+        work = os.path.join(self.tmp, "work")
+        os.makedirs(work)
+        git(work, "init", "-q", "-b", "main", "--separate-git-dir", sep)
+        self.run_hook(self.launch(work, "agentId: a1"))
+        self.assertEqual(len(self.records(work)), 1)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, ".claude")), "parent of the common dir")
+        self.assertFalse(os.path.exists(os.path.join(sep, ".claude")), "inside git metadata")
+
+    def test_submodule_does_not_write_into_git_modules(self):
+        main = self.repo()
+        other = self.repo("other")
+        git(main, "-c", "protocol.file.allow=always", "submodule", "add", "-q", other, "sub")
+        sub = os.path.join(main, "sub")
+        self.run_hook(self.launch(sub, "agentId: a1"))
+        self.assertFalse(os.path.exists(os.path.join(main, ".git", "modules", ".claude")))
+        self.assertFalse(os.path.exists(os.path.join(main, ".git", ".claude")))
+        self.assertEqual(len(self.records(sub)), 1)
+
+    def test_removed_cwd_is_never_recreated(self):
+        gone = os.path.join(self.tmp, "main", ".claude", "worktrees", "agent-x")
+        self.run_hook({"hook_event_name": "SubagentStop", "cwd": gone, "agent_id": "a1"})
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "main")))
+        project = os.path.join(self.tmp, "project")
+        os.makedirs(project)
+        self.run_hook({"hook_event_name": "SubagentStop", "cwd": gone, "agent_id": "a1"}, project_dir=project)
+        self.assertEqual(len(self.records(project)), 1)
+        self.assertFalse(os.path.exists(gone))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "main")))
+
+    def test_project_dir_that_does_not_exist_is_not_created(self):
+        missing = os.path.join(self.tmp, "nope")
+        self.run_hook(self.launch(os.path.join(self.tmp, "also-gone"), "agentId: a1"), project_dir=missing)
+        self.assertFalse(os.path.exists(missing))
 
     def test_stop_record(self):
         main = self.repo()

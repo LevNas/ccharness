@@ -27,18 +27,19 @@ Do NOT use when tasks share files (serialize those), when the work needs design 
 With `worktree.baseRef: head` (project setting), the orchestrator's cwd HEAD determines the fan-out base of every spawned worktree.
 
 ```bash
-git rev-parse --abbrev-ref HEAD && git rev-parse HEAD   # record as BASE
+git rev-parse --abbrev-ref HEAD                          # branch name, for the report only (prints HEAD when detached)
+git rev-parse HEAD                                       # record this commit hash as BASE
 git status --short                                       # expect clean
 grep -rs '"baseRef"' .claude/settings.json .claude/settings.local.json
 ```
 
-- Record BASE in your working notes; every later phase references it.
+- BASE is the commit hash, not the branch name. Record it in your working notes; every later phase uses that hash (`git diff --name-only BASE..<branch>`, `git worktree add ... BASE`), because the base branch may move during the wave and a branch name would then point at a different commit than the workers started from.
 - Do not `cd` elsewhere or move HEAD between launches — all workers of one wave must share the same base.
-- With `baseRef: fresh` (default), the base is origin's default branch; fetch first if that is intended, or set the project to `head` for local-stacked work.
+- With `baseRef: fresh` (default), the base is origin's default branch; fetch first if that is intended, or set the project to `head` for local-stacked work. With `fresh`, record `git rev-parse origin/<default>` after the fetch as BASE instead of the local HEAD, since that is the commit the workers start from.
 
 ## Phase 1 — Fan out in waves
 
-- At most `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` workers at once (the official setting; the Agent tool refuses spawns past it, and this plugin adds no cap of its own). Split excess tasks into waves.
+- A wave has at most 3 workers, whatever the settings say, and fewer when `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set lower (the Agent tool refuses spawns past that official cap, whose default of 20 is far above what a host should run; this plugin adds no cap of its own). Split excess tasks into waves.
 - Spawn `ccharness:worktree-worker` per task, background, with this prompt shape:
 
 ```
