@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Cleanup hint after a merged PR (PostToolUse(Bash)).
 
-After `gh pr merge` the same tidy-up follows every time: leave the worktree, bring the base branch up to
-date, remove what is left. The `worktree-sweep` skill computes that, but nothing made the session call it,
+After `gh pr merge` the same tidy-up follows every time: leave the worktree, bring the branch the PR
+merged into up to date (the default branch, or the parent of a stacked worktree), remove what is left. The `worktree-sweep` skill computes that, but nothing made the session call it,
 and its listing does not come back after compaction. This hook creates the moment to call it.
 
 Context only: it never runs the sweep (the session is usually inside a linked worktree, which the script
@@ -27,12 +27,17 @@ import shlex
 import sys
 
 HINT = (
-    "ccharness: a PR was merged. Clean up in this order. "
-    "1. If the session is in a worktree, check it for uncommitted or untracked files (move work files such "
-    "as session captures to the main checkout before removal). "
-    "2. Leave the worktree with ExitWorktree, action keep. "
-    "3. From the main checkout, run the `worktree-sweep` skill (report only). "
-    "4. Run its delete-class commands only when the user says so; never add `--force` to "
+    "ccharness: a PR was merged. The branch the PR merged into must be brought up to date where it is "
+    "checked out, and the merged branch's worktree removed. Which step applies depends on where this "
+    "session is: "
+    "(a) in the worktree of the merged branch: check it for uncommitted or untracked files (move untracked "
+    "work files to the main checkout before removal), leave it with ExitWorktree, action keep, then run the "
+    "`worktree-sweep` skill from the main checkout. "
+    "(b) in the worktree of the PR's base branch (a stacked worktree): run `git pull --ff-only` there; the "
+    "merged branch's worktree is swept later from the main checkout. "
+    "`worktree-sweep` (report only) also fast-forwards the PR's base branch where it is checked out, or "
+    "prints the command when that worktree is in use by a live session. "
+    "Run its delete-class commands only when the user says so; never add `--force` to "
     "`git worktree remove`."
 )
 

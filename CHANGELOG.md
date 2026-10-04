@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+Parallel work is split into stacked worktrees: worktree 1 from main, worktree 2 from worktree 1, and worktree 2's PR is merged into worktree 1's branch with `gh pr merge`. After that merge the parent branch has to be brought up to date where it is checked out, and the child branch is not an ancestor of the default branch, so the sweep only ever called it "review". `worktree-sweep` knew only the default branch.
+
+- `scripts/worktree_sweep.py`:
+  - After the base sync, every linked worktree whose branch has an upstream that exists after the fetch is fast-forwarded in that worktree when it is behind, has no commits of its own and no tracked changes, and is not locked by a live process (note: `<branch> fast-forwarded N commit(s) in <path>`). Locked by a live process: nothing runs, the note carries `git -C <path> merge --ff-only <upstream>` (or `git pull --ff-only` from inside it). Ahead and behind, tracked changes, a failed fast-forward: a note. No upstream: skipped. `--no-pull` turns all of it into notes.
+  - `gh` is asked for `baseRefName` too. A branch that is not merged into `origin/<base>` but whose PR is MERGED into another branch, with `origin/<that branch>` existing and containing it, is **delete**, with `merged: ancestor of origin/<parent> (PR #N base)` and `git branch -D <branch>  # ancestor of origin/<parent>; -d compares with HEAD or a gone upstream and refuses`. If `origin/<parent>` is gone the existing comparison with `origin/<base>` applies; nothing is guessed.
+- `hooks/post_merge_cleanup_hint.py`: the hint gives two cases, since the hook cannot tell which applies: in the merged branch's worktree (check files, ExitWorktree keep, `worktree-sweep` from the main checkout); in the PR's base branch's worktree (`git pull --ff-only` there). It says that `worktree-sweep` also fast-forwards the PR's base branch, or prints the command when that worktree is in use. "Session captures" is replaced by a generic phrase.
+- `templates/skills/{ja,en}/session-wrap`: also triggered by a merge-time review returning pass or fail. On fail: record the verdict, the blocking findings, the next step and the number of fix rounds on a separate branch and PR into the default branch, not on the feature branch. A session-wrap's own branch or PR is never wrapped again.
+- Tests: `tests/test_worktree_sweep_stacked.py` (temporary repositories: bare origin, clones, worktrees; `gh` replaced by a stub of `open_pr`), and the hint tests.
+
 ## 0.6.0
 
 The tidy-up after a merge (leave the worktree, update the base, remove what is left) is computed by `worktree-sweep`, whose description says "after a merge", yet in real sessions it was never called: five merges in a row were cleaned up by hand, and the skill listing does not come back after compaction. Prose cannot create the moment to call it, so a hook does.

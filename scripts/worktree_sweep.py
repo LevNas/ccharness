@@ -8,12 +8,22 @@ Run from the main checkout (not a linked worktree):
 1. Sync: `git fetch origin --prune`, then fast-forward the base branch (origin/HEAD, else main)
    when the main checkout is on it, has no local commits and no tracked changes. A
    fast-forward loses nothing; anything else is reported, not forced.
+   Then every linked worktree whose branch has an upstream (`<branch>@{u}`) that exists after
+   the fetch is brought up to date the same way, in that worktree: behind, no commits of its
+   own, no tracked changes, not locked by a live process -> `git merge --ff-only`. This is
+   what a stacked worktree needs after its child's PR was merged into it. Locked by a live
+   process: nothing is run, the command is printed. Ahead and behind, tracked changes, a
+   failed fast-forward: a note. Branches without an upstream are skipped. `--no-pull` turns
+   all of it into notes.
 2. Classify every local branch and linked worktree against origin/<base>:
    - delete: merged (an ancestor, or every patch already there per `git cherry` and no merge
-     commits of its own), and its worktree, if any, has no uncommitted, untracked or ignored
-     files and is not in use. `git worktree remove` (no --force) and `git branch -d` are
-     refused by git when that is not true; `git branch -D`, shown only with the cherry proof,
-     is not, so that one rests on this script's check.
+     commits of its own; or, for a stacked branch, its PR is MERGED into another branch whose
+     origin/<branch> exists and contains it), and its worktree, if any, has no uncommitted,
+     untracked or ignored files and is not in use. `git worktree remove` (no --force) and
+     `git branch -d` are refused by git when that is not true; `git branch -D`, shown only with
+     the cherry or parent-ancestor proof, is not, so that one rests on this script's check.
+     If origin/<parent> is gone (the parent was merged and deleted too), the branch is compared
+     with origin/<base> only; nothing is guessed.
    - review: needs a person — commits not on the base, an open PR, files left in the
      worktree (ignored ones too: `git worktree remove` deletes those silently), a stale lock.
    - in-use: locked by a live process, or checked out in the main checkout. Left alone.
@@ -131,14 +141,15 @@ def open_pr(top, branch, use_gh):
         return None
     try:
         r = subprocess.run(["gh", "pr", "list", "--head", branch, "--state", "all", "--limit", "5",
-                            "--json", "number,state"], cwd=top, capture_output=True, text=True,
+                            "--json", "number,state,baseRefName"], cwd=top, capture_output=True, text=True,
                            timeout=20)
         prs = json.loads(r.stdout) if r.returncode == 0 else []
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return None
-    for pr in prs:
-        if pr.get("state") == "OPEN":
-            return pr
+    for state in ("OPEN", "MERGED"):
+        for pr in prs:
+            if pr.get("state") == state:
+                return pr
     return prs[0] if prs else None
 
 
@@ -150,6 +161,55 @@ def sync(top, base, upstream, fetch, pull):
         rc, _, err = git(top, "fetch", "origin", "--prune")
         notes.append("fetched origin (pruned)" if rc == 0 else
                      f"fetch failed, so origin/* may be stale: {(err.splitlines() or [rc])[-1]}")
+    notes += sync_base(top, base, upstream, pull)
+    notes += sync_worktrees(top, pull)
+    return notes
+
+
+def sync_worktrees(top, pull):
+    """Fast-forward each linked worktree's branch to its upstream, where that loses nothing."""
+    notes = []
+    for wt in worktrees(top):
+        branch = wt["branch"]
+        if not branch or wt["prunable"] or not os.path.isdir(wt["path"]):
+            continue
+        up = out(top, "rev-parse", "--abbrev-ref", f"{branch}@{{u}}")
+        if not up or not out(top, "rev-parse", "--verify", "--quiet", f"{up}^{{commit}}"):
+            continue  # no upstream, or it is gone
+        behind = int(out(top, "rev-list", "--count", f"{branch}..{up}") or 0)
+        if not behind:
+            continue
+        where = rel(top, wt["path"])
+        ahead = int(out(top, "rev-list", "--count", f"{up}..{branch}") or 0)
+        command = f"git -C {shlex.quote(where)} merge --ff-only {shlex.quote(up)}"
+        pid = lock_pid(wt["locked"]) if wt["locked"] is not None else None
+        rc, dirty, _ = git(wt["path"], "status", "--porcelain", "--untracked-files=no")
+        if ahead:
+            notes.append(f"{branch} in {where} has {ahead} local commit(s) and is {behind} behind "
+                         f"{up}: not pulled (decide how to integrate)")
+        elif pid is not None and alive(pid):
+            notes.append(f"{branch} in {where} is {behind} behind {up} and in use (locked by "
+                         f"process {pid}): not touched. Run `{command}`, or `git pull --ff-only` "
+                         "from inside it")
+        elif rc:
+            notes.append(f"{branch} in {where} is {behind} behind {up}, but `git status` failed "
+                         "there: not pulled")
+        elif dirty:
+            notes.append(f"{branch} in {where} is {behind} behind {up} but has tracked changes: "
+                         "not pulled")
+        elif not pull:
+            notes.append(f"{branch} in {where} is {behind} behind {up} (--no-pull): "
+                         f"run `{command}`")
+        else:
+            rc, _, err = git(wt["path"], "merge", "--ff-only", "--quiet", up)
+            notes.append(f"{branch} fast-forwarded {behind} commit(s) in {where}" if rc == 0 else
+                         f"{branch} in {where}: fast-forward to {up} failed: "
+                         f"{err.splitlines()[-1] if err else rc}")
+    return notes
+
+
+def sync_base(top, base, upstream, pull):
+    notes = []
     if upstream == base:
         return notes
     current = out(top, "symbolic-ref", "--short", "-q", "HEAD")
@@ -224,6 +284,20 @@ def merge_state(top, rev, upstream):
     return False, "", [f"{count} commit(s) not in {upstream}: {shown}"]
 
 
+def merged_into_parent(top, branch, upstream, pr):
+    """`ancestor of origin/<parent> (PR #N base)` when the branch's PR was merged into a branch
+    other than the base and origin/<parent> still exists and contains the branch; else None."""
+    parent = pr.get("baseRefName")
+    if pr.get("state") != "MERGED" or not parent or f"origin/{parent}" == upstream:
+        return None
+    ref = f"origin/{parent}"
+    if not out(top, "rev-parse", "--verify", "--quiet", f"refs/remotes/{ref}"):
+        return None  # the parent is gone too: fall back to the base comparison, do not guess
+    if git(top, "merge-base", "--is-ancestor", branch, ref)[0] != 0:
+        return None
+    return f"ancestor of {ref} (PR #{pr['number']} base)"
+
+
 def rel(top, path):
     r = os.path.relpath(path, top)
     return path if r.startswith("..") else r
@@ -264,14 +338,18 @@ def item(top, upstream, branch, track, date, wt, current, use_gh):
                              "after checking" if pid is not None
                              else f"locked ({wt['locked'] or 'no reason'})")
     merged, how, reasons = merge_state(top, branch or wt["head"], upstream)
+    pr = open_pr(top, branch, use_gh) if branch else None
+    parent_proof = False
+    if not merged and pr:
+        proof = merged_into_parent(top, branch, upstream, pr)
+        if proof:
+            merged, how, reasons, parent_proof = True, proof, [], True
     it["merged"] = how or False
     it["reasons"] += reasons
-    if branch:
-        pr = open_pr(top, branch, use_gh)
-        if pr:
-            it["pr"] = f"#{pr['number']} {pr['state']}"
-            if pr["state"] == "OPEN":
-                it["reasons"].append(f"PR #{pr['number']} is open")
+    if pr:
+        it["pr"] = f"#{pr['number']} {pr['state']}"
+        if pr["state"] == "OPEN":
+            it["reasons"].append(f"PR #{pr['number']} is open")
     if wt:
         it["reasons"] += worktree_state(wt)
     if it["reasons"]:
@@ -281,7 +359,10 @@ def item(top, upstream, branch, track, date, wt, current, use_gh):
     if wt:
         it["commands"].append(f"git worktree remove {shlex.quote(it['worktree'])}")
     if branch:
-        if how != "ancestor":
+        if parent_proof:
+            it["commands"].append(f"git branch -D {shlex.quote(branch)}  # {how.split(' (')[0]}; "
+                                  "-d compares with HEAD or a gone upstream and refuses")
+        elif how != "ancestor":
             it["commands"].append(f"git branch -D {shlex.quote(branch)}  # {how}; git does not "
                                   "check -D")
         else:
