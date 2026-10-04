@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.0
+
+The leaf agent catalog, the parallel worktree skill, the tier guard and the agent ledger move here from ccorch (0.4.0). The two plugins are re-split by axis: ccharness is how work is distributed INSIDE one session (who does a step: script, least-privilege subagent or main session; at what cost: model and effort pinned per leaf type; cleanup). ccorch keeps only the splitting of work into SEPARATE sessions (`/ccor` panes). A second reason: ccorch's `/ccor-parallel` cleaned up with `git worktree remove --force` and `git branch -D`, which contradicts `worktree-sweep` (no `--force`; `-D` only with proof). With the skill here, one cleanup path wins.
+
+- `agents/` (new): `web-research`, `web-refuter`, `log-distiller`, `kb-integrator`, `knowledge-recorder`, `pbr-reviewer`, `worktree-worker`, `impl-verifier`, copied from ccorch with their model, effort and tools frontmatter unchanged (types are `ccharness:<name>`). `web-research`'s description now says to fetch a single page directly with WebFetch.
+  - `url-extract` is retired and not carried over. WebFetch's tool description states that it answers through a small fast model, so a haiku wrapper around it would summarize twice and add the cost of a spawn.
+- `skills/parallel-worktree` (new, rebuilt from `/ccor-parallel`): origin pinning, waves, capture preservation, `--no-ff` integration worktree, as before, with these changes:
+  - the parallel limit is the official `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` (the plugin adds no cap);
+  - Phase 2 also lists ignored files, since `worktree-sweep` classes a worktree that holds them as review;
+  - Phase 4 is replaced: the integration branch is pushed from inside its worktree (`ship push` pushes the current branch, and the orchestrator sits on the base branch in the main checkout), opened as a PR and merged through the repository's merge flow (review, then merge on the user's word, with a merge commit). Worker worktrees and branches are removed only through `worktree-sweep`'s delete-class commands, on the user's word. Every `--force` and `git branch -D` instruction is gone: worker branches merged with `--no-ff` into an integration branch that is merged into the base become ancestors of the base, so the sweep classifies them as delete, with git's own refusal as the last check;
+  - a "Later" note: Phase 0 and the Phase 3 checks give the same answer every time and are candidates for a script, as `ship` is.
+- `hooks/agent_tier_guard.py` (new), PreToolUse on `Agent|Task`: for a `ccharness:<type>` of the catalog, denies a `model` override more than one tier above the pinned tier (haiku 1, sonnet 2, opus 3, fable and mythos 4; an unknown model name is denied; `inherit` and empty are allowed). The pinned tier is read from the `model:` line of `agents/<type>.md` on every call, so it cannot drift from the frontmatter; a type is a catalog type when that file exists. An unreadable file or a file without a `model:` line allows. Off switch: `CCHARNESS_TIER_GUARD=off`.
+- `hooks/agent_ledger.py` (new), PostToolUse on `Agent|Task` and SubagentStop: one JSON line per launch and stop (schema `ccharness.ledger/1`) in `<main checkout>/.claude/ccharness/ledger.jsonl`. The main checkout is resolved from `git rev-parse --git-common-dir`, because a ledger written inside a linked worktree is an ignored file there, and `worktree-sweep` classes a worktree with ignored files as review, so every worktree that spawned an agent would stop being delete-class. Prompt bodies are never recorded. See `docs/ledger.md`; add `.claude/ccharness/` to the `.gitignore` of every repository that uses it (this repository does).
+- While ccorch 0.4.0 is still installed alongside, each spawn is recorded in both ledgers. This is harmless.
+- Tests: `tests/test_agent_tier_guard.py`, `tests/test_agent_ledger.py`.
+
 ## 0.8.0
 
 The steps after implementation (stage, commit, push, check the PR) give the same answer every time, yet hand-written versions kept failing: `git add -A` refused by a commit-scope rule, compound git commands refused by the worktree isolation check, several calls strung together per PR. They are now a script.
