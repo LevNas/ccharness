@@ -31,7 +31,7 @@ commit → push → plain `gh pr create --body-file` → check.
 
 ## Exit codes
 
-- `0`: done; for `check`, the PR is OPEN, MERGEABLE, CLEAN (a draft: DRAFT; BLOCKED is not ready, since it also means failing or pending checks), its head is the local HEAD and its files are the expected files.
+- `0`: done; for `check`, the PR is OPEN, MERGEABLE, CLEAN (a draft also accepts DRAFT; BLOCKED is never ready, since it also means failing or pending checks), its head is the local HEAD and its files are the expected files.
 - `1`: a refusal or a failed check stopped it. Read the printed reason and fix the cause; do not work around the refusal (no `git add -A`, no `--force`, no `--no-verify`).
 - `2`: usage or environment error (not a repository, `gh` missing, unreadable file).
 

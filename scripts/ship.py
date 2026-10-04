@@ -16,7 +16,7 @@ Subcommands
       --force, never --no-verify, so a pre-push hook keeps running.
   check [--pr N] [--expect-files F ...] [--wait SECONDS]
       Read-only. Asks `gh pr view` and exits 0 only when the PR is open,
-      mergeable, clean (a draft: DRAFT), its head is the local
+      mergeable, clean (a draft: CLEAN or DRAFT, never BLOCKED), its head is the local
       HEAD and, when given, its files are the expected files. GitHub only; GitLab
       is not covered yet.
 
@@ -264,8 +264,9 @@ def cmd_check(args):
         problems.append(f"state {state}")
     if mergeable != "MERGEABLE":
         problems.append(f"mergeable {mergeable}")
-    # BLOCKED also means failing or pending checks, so a draft is ready only as DRAFT
-    if status != ("DRAFT" if draft else "CLEAN"):
+    # BLOCKED also means failing or pending checks, so it is never ready, draft or not.
+    # GitHub reports a draft with passing checks as CLEAN (older API versions: DRAFT).
+    if status not in (("CLEAN", "DRAFT") if draft else ("CLEAN",)):
         problems.append(f"mergeStateStatus {status}")
     if pr.get("headRefOid") != head:
         problems.append(f"head {str(pr.get('headRefOid'))[:7]} != local {head[:7]}")

@@ -289,6 +289,11 @@ class ShipTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("BLOCKED", r.stdout)
 
+    def test_check_draft_clean_is_ready(self):
+        # what GitHub reports for a draft whose checks pass
+        env, _ = self.fake_gh(self.pr(isDraft=True, mergeStateStatus="CLEAN"))
+        self.assertEqual(self.check(env).returncode, 0)
+
     def test_check_non_draft_with_draft_status_is_not_ready(self):
         env, _ = self.fake_gh(self.pr(mergeStateStatus="DRAFT"))
         self.assertEqual(self.check(env).returncode, 1)
