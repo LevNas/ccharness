@@ -154,6 +154,70 @@ class ShipTest(unittest.TestCase):
         r = self.commit(["old.txt"])
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def assert_key_blocked(self, name, content=None, config=()):
+        self.feature()
+        for k, v in config:
+            git(self.work, "config", k, v)
+        header = "-----BEGIN OPENSSH PRIV" + "ATE KEY-----\n"
+        with open(os.path.join(self.work, name), "wb") as f:
+            f.write(content if content is not None else header.encode())
+        before = git(self.work, "rev-parse", "HEAD")
+        r = self.commit([name])
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("private-key-header", r.stdout)
+        self.assertNotIn("OPENSSH", r.stdout + r.stderr)
+        self.assertEqual(git(self.work, "rev-parse", "HEAD"), before)
+
+    def test_scan_unicode_name(self):
+        self.assert_key_blocked("日本語.txt")
+
+    def test_scan_name_with_space(self):
+        self.assert_key_blocked("my key.txt")
+
+    def test_scan_diff_noprefix(self):
+        self.assert_key_blocked("key.txt", config=[("diff.noprefix", "true")])
+
+    def test_scan_diff_mnemonic_prefix(self):
+        self.assert_key_blocked("key.txt", config=[("diff.mnemonicPrefix", "true")])
+
+    def test_scan_line_starting_with_plus_plus_space(self):
+        header = "-----BEGIN OPENSSH PRIV" + "ATE KEY-----"
+        # the '++ ' line is added as '+++ ...' and must not be read as a file header
+        self.assert_key_blocked("k.txt", ("++ x\n" + header + "\n").encode())
+        git(self.work, "reset", "-q")
+        with open(os.path.join(self.work, "k.txt"), "wb") as f:
+            f.write(("++ " + header + "\n").encode())
+        self.assertEqual(self.commit(["k.txt"]).returncode, 1)
+
+    def test_scan_non_utf8_file_does_not_crash(self):
+        self.assert_key_blocked("latin.txt", b"caf\xe9 \xff\n-----BEGIN RSA PRIV" + b"ATE KEY-----\n")
+        git(self.work, "reset", "-q")
+        with open(os.path.join(self.work, "latin.txt"), "wb") as f:
+            f.write(b"caf\xe9 \xff\n")
+        r = self.commit(["latin.txt"])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_glob_characters_in_path_are_literal(self):
+        self.feature()
+        write(os.path.join(self.work, "a*.txt"), "star\n")
+        write(os.path.join(self.work, "a1.txt"), "one\n")
+        r = self.commit(["a*.txt"])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(git(self.work, "show", "--name-only", "--format=", "HEAD"), "a*.txt")
+
+    def test_path_outside_repository_refused(self):
+        self.feature()
+        r = self.commit(["../outside.txt"])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("not a file inside", r.stderr)
+
+    def test_refuses_on_master_even_when_origin_head_is_main(self):
+        git(self.work, "checkout", "-q", "-b", "master")
+        write(os.path.join(self.work, "a.txt"), "a\n")
+        r = self.commit(["a.txt"])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("default branch", r.stderr)
+
     def test_scan_patterns_file(self):
         self.feature()
         pats = os.path.join(self.tmp.name, "pats.txt")
@@ -200,6 +264,14 @@ class ShipTest(unittest.TestCase):
     def check(self, env, *args):
         return self.ship("check", "--poll-interval", "0.05", *args, env=env)
 
+    def test_push_branch_named_with_plus(self):
+        git(self.work, "checkout", "-q", "-b", "+x")
+        write(os.path.join(self.work, "a.txt"), "a\n")
+        self.assertEqual(self.commit(["a.txt"]).returncode, 0)
+        r = self.ship("push")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(git(self.remote, "rev-parse", "refs/heads/+x"), git(self.work, "rev-parse", "HEAD"))
+
     def test_check_ready(self):
         env, _ = self.fake_gh(self.pr())
         r = self.check(env, "--expect-files", "a.txt")
@@ -210,6 +282,28 @@ class ShipTest(unittest.TestCase):
     def test_check_draft_blocked_is_ready(self):
         env, _ = self.fake_gh(self.pr(isDraft=True, mergeStateStatus="DRAFT"))
         self.assertEqual(self.check(env).returncode, 0)
+
+    def test_check_draft_blocked_is_not_ready(self):
+        env, _ = self.fake_gh(self.pr(isDraft=True, mergeStateStatus="BLOCKED"))
+        r = self.check(env)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("BLOCKED", r.stdout)
+
+    def test_check_non_draft_with_draft_status_is_not_ready(self):
+        env, _ = self.fake_gh(self.pr(mergeStateStatus="DRAFT"))
+        self.assertEqual(self.check(env).returncode, 1)
+
+    def test_check_rejects_non_finite_wait(self):
+        env, _ = self.fake_gh(self.pr())
+        for bad in ("inf", "nan", "-1"):
+            self.assertEqual(self.check(env, "--wait=" + bad).returncode, 2, bad)
+
+    def test_check_polls_while_head_differs_then_ready(self):
+        env, d = self.fake_gh(self.pr(headRefOid="0" * 40), self.pr())
+        r = self.check(env, "--wait", "5")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        with open(os.path.join(d, "count")) as f:
+            self.assertEqual(f.read().strip(), "2")
 
     def test_check_unknown_then_ready(self):
         env, d = self.fake_gh(self.pr(mergeable="UNKNOWN"), self.pr(mergeable="UNKNOWN"), self.pr())
@@ -232,7 +326,7 @@ class ShipTest(unittest.TestCase):
 
     def test_check_head_mismatch(self):
         env, _ = self.fake_gh(self.pr(headRefOid="0" * 40))
-        r = self.check(env)
+        r = self.check(env, "--wait", "0.2")
         self.assertEqual(r.returncode, 1)
         self.assertIn("head", r.stdout)
 

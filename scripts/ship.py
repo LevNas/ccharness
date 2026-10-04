@@ -16,7 +16,7 @@ Subcommands
       --force, never --no-verify, so a pre-push hook keeps running.
   check [--pr N] [--expect-files F ...] [--wait SECONDS]
       Read-only. Asks `gh pr view` and exits 0 only when the PR is open,
-      mergeable, clean (or blocked only by being a draft), its head is the local
+      mergeable, clean (a draft: DRAFT), its head is the local
       HEAD and, when given, its files are the expected files. GitHub only; GitLab
       is not covered yet.
 
@@ -30,6 +30,7 @@ your own between `push` and `check`.
 """
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -53,11 +54,17 @@ class Stop(Exception):
         self.code = code
 
 
-def run(argv, cwd=None):
+GH_TIMEOUT = 60
+
+
+def run(argv, cwd=None, timeout=None):
     try:
-        return subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
+        return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, errors="replace",
+                              timeout=timeout)
     except FileNotFoundError:
         raise Stop(f"{argv[0]}: command not found", 2)
+    except subprocess.TimeoutExpired:
+        raise Stop(f"{argv[0]} timed out after {timeout} seconds", 2)
 
 
 def git(*args, cwd=None):
@@ -86,11 +93,12 @@ def current_branch(top):
 
 
 def default_branches(top):
-    """Names that count as the default branch: origin/HEAD, else main and master."""
+    """Names protected as the default branch: the origin/HEAD target and main, master."""
+    names = {"main", "master"}
     r = git("symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD", cwd=top)
     if r.returncode == 0 and r.stdout.strip():
-        return {r.stdout.strip().split("/", 1)[-1]}
-    return {"main", "master"}
+        names.add(r.stdout.strip().split("/", 1)[-1])
+    return names
 
 
 def refuse_default_branch(top):
@@ -132,22 +140,40 @@ def load_extra_patterns(path):
     return extra
 
 
-def scan_staged(top, patterns):
-    """Hits as (file, line number, pattern name); the matched text is never kept."""
-    out = git_ok("diff", "--cached", "--no-renames", "--no-color", "-U0", cwd=top)
-    hits, path, lineno = [], None, 0
-    for line in out.splitlines():
-        if line.startswith("+++ "):
-            path = line[6:] if line.startswith("+++ b/") else None
-        elif line.startswith("@@"):
-            m = re.match(r"@@ -\S+ \+(\d+)", line)
-            lineno = int(m.group(1)) if m else 0
-        elif line.startswith("+") and path is not None:
-            for name, rx in patterns:
-                if rx.search(line[1:]):
-                    hits.append((path, lineno, name))
-            lineno += 1
+def scan_staged(top, paths, patterns):
+    """Hits as (file, line number, pattern name); the matched text is never kept.
+
+    The path of a hit is the one from the -z staged list, never parsed from diff
+    text (quoting, prefix settings and content lines such as '++ x' would fool it).
+    Only hunk headers and '+' lines of a per-path diff are read; binary files
+    have no hunks and are not scanned.
+    """
+    hits = []
+    for path in sorted(paths):
+        out = git_ok("--literal-pathspecs", "diff", "--cached", "--no-ext-diff", "--no-textconv",
+                     "--no-color", "--no-renames", "-U0", "--", path, cwd=top)
+        lineno, in_hunk = 0, False
+        for line in out.splitlines():
+            if line.startswith("@@"):
+                m = re.match(r"@@ -\S+ \+(\d+)", line)
+                lineno, in_hunk = (int(m.group(1)) if m else 0), True
+            elif in_hunk and line.startswith("+"):
+                for name, rx in patterns:
+                    if rx.search(line[1:]):
+                        hits.append((path, lineno, name))
+                lineno += 1
     return hits
+
+
+def repo_relative(top, f):
+    """Path of f (relative to the current directory) inside the repository, symlink-safe."""
+    absolute = os.path.abspath(f)
+    real = os.path.join(os.path.realpath(os.path.dirname(absolute)), os.path.basename(absolute))
+    rel = os.path.relpath(real, os.path.realpath(top))
+    parts = rel.split(os.sep)
+    if rel == "." or parts[0] == os.pardir:
+        raise Stop(f"path is not a file inside the repository: {f}")
+    return rel
 
 
 def cmd_commit(args):
@@ -161,14 +187,9 @@ def cmd_commit(args):
     message_file = os.path.abspath(args.message_file)
     extra = load_extra_patterns(args.scan_patterns) if args.scan_patterns else []
 
-    listed = []
-    for f in args.files:
-        rel = os.path.relpath(os.path.abspath(f), top)
-        if rel == "." or rel.startswith(".."):
-            raise Stop(f"path is not a file inside the repository: {f}")
-        listed.append(rel)
+    listed = [repo_relative(top, f) for f in args.files]
     for rel in listed:
-        r = git("add", "--", rel, cwd=top)
+        r = git("--literal-pathspecs", "add", "--", rel, cwd=top)
         if r.returncode:
             raise Stop(f"git add -- {rel} failed: {r.stderr.strip()}")
 
@@ -182,7 +203,7 @@ def cmd_commit(args):
         print("only listed: " + (", ".join(sorted(want - staged)) or "(none)"))
         return 1
 
-    hits = scan_staged(top, BUILTIN_PATTERNS + extra)
+    hits = scan_staged(top, staged, BUILTIN_PATTERNS + extra)
     if hits:
         print("scan hit in added lines; nothing committed (the staged files stay staged):")
         for path, lineno, name in hits:
@@ -201,7 +222,8 @@ def cmd_commit(args):
 def cmd_push(args):
     top = toplevel()
     branch = refuse_default_branch(top)
-    r = git("push", "-u", "origin", branch, cwd=top)
+    # explicit refspec: a branch named '+x' would otherwise read as a forced refspec
+    r = git("push", "-u", "origin", f"refs/heads/{branch}:refs/heads/{branch}", cwd=top)
     sys.stdout.write(r.stdout)
     sys.stderr.write(r.stderr)
     if r.returncode:
@@ -215,7 +237,7 @@ PR_FIELDS = "number,url,state,isDraft,mergeable,mergeStateStatus,baseRefName,hea
 
 def pr_view(top, number):
     argv = ["gh", "pr", "view"] + ([str(number)] if number else []) + ["--json", PR_FIELDS]
-    r = run(argv, cwd=top)
+    r = run(argv, cwd=top, timeout=GH_TIMEOUT)
     if r.returncode:
         raise Stop(f"gh pr view failed: {r.stderr.strip()}", 2)
     try:
@@ -226,14 +248,15 @@ def pr_view(top, number):
 
 def cmd_check(args):
     top = toplevel()
-    deadline = time.monotonic() + max(args.wait, 0)
+    head = git_ok("rev-parse", "HEAD", cwd=top).strip()
+    deadline = time.monotonic() + args.wait
     while True:
         pr = pr_view(top, args.pr)
-        if pr.get("mergeable") != "UNKNOWN" or time.monotonic() >= deadline:
+        settled = pr.get("mergeable") != "UNKNOWN" and pr.get("headRefOid") == head
+        if settled or time.monotonic() >= deadline:
             break
         time.sleep(args.poll_interval)
 
-    head = git_ok("rev-parse", "HEAD", cwd=top).strip()
     problems = []
     state, mergeable = pr.get("state"), pr.get("mergeable")
     status, draft = pr.get("mergeStateStatus"), bool(pr.get("isDraft"))
@@ -241,8 +264,8 @@ def cmd_check(args):
         problems.append(f"state {state}")
     if mergeable != "MERGEABLE":
         problems.append(f"mergeable {mergeable}")
-    draft_only = draft and status in ("DRAFT", "BLOCKED")
-    if status != "CLEAN" and not draft_only:
+    # BLOCKED also means failing or pending checks, so a draft is ready only as DRAFT
+    if status != ("DRAFT" if draft else "CLEAN"):
         problems.append(f"mergeStateStatus {status}")
     if pr.get("headRefOid") != head:
         problems.append(f"head {str(pr.get('headRefOid'))[:7]} != local {head[:7]}")
@@ -263,6 +286,13 @@ def cmd_check(args):
     return 0
 
 
+def finite_seconds(text):
+    value = float(text)
+    if not math.isfinite(value) or value < 0:
+        raise argparse.ArgumentTypeError("must be a finite number of seconds, 0 or more")
+    return value
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="commit, push and check a pull request (see module docstring)")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -276,7 +306,7 @@ def main(argv=None):
     k = sub.add_parser("check", help="read-only pull request check (GitHub only)")
     k.add_argument("--pr", type=int, metavar="N")
     k.add_argument("--expect-files", nargs="+", metavar="F")
-    k.add_argument("--wait", type=float, default=30, metavar="SECONDS")
+    k.add_argument("--wait", type=finite_seconds, default=30, metavar="SECONDS")
     k.add_argument("--poll-interval", type=float, default=2, help=argparse.SUPPRESS)
     k.set_defaults(fn=cmd_check)
     args = ap.parse_args(argv)
