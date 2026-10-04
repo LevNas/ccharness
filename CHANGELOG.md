@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+The steps after implementation (stage, commit, push, check the PR) give the same answer every time, yet hand-written versions kept failing: `git add -A` refused by a commit-scope rule, compound git commands refused by the worktree isolation check, several calls strung together per PR. They are now a script.
+
+- `scripts/ship.py` (new; Python 3 stdlib only, every git/gh call an argument list, no shell):
+  - `commit --files F [F ...] --message-file M [--scan-patterns P]`: refuses on the default branch (`origin/HEAD`, falling back to main/master) and during a merge or rebase; stages each listed path by name (a deleted path as a removal; never `git add -A` or `.`); the staged set must equal the listed set, otherwise it prints both and stops without unstaging; scans the added lines of the staged diff for private key headers, common token prefixes and quoted `password|secret|token` values, plus extra regexes from `--scan-patterns` (one per line, `#` comments). A hit prints file, line and pattern name only, never the matched text, and nothing is committed. Then `git commit -F M` and the new short SHA.
+  - `push`: refuses on the default branch; `git push -u origin <branch>`; never `--force`, never `--no-verify`, so a pre-push hook keeps running.
+  - `check [--pr N] [--expect-files F ...] [--wait SECONDS]`: read-only `gh pr view`; polls while `mergeable` is UNKNOWN (default 30 s); one summary line; exit 0 only for OPEN, MERGEABLE, CLEAN (or draft-blocked only), head equal to local HEAD and, when given, files equal to the expected files. GitHub only; GitLab is not covered yet.
+  - It does not create or post the PR: a `gh pr create` inside a script would hide its title and body from PreToolUse guards that check what gh posts.
+- `skills/ship` (new): when to use it and the order commit → push → plain `gh pr create --body-file` → check, the exit codes, and that merging stays with the user.
+- Tests: `tests/test_ship.py` (temporary repositories with a local bare remote; `gh` replaced by a stub on PATH).
+
 ## 0.7.0
 
 Parallel work is split into stacked worktrees: worktree 1 from main, worktree 2 from worktree 1, and worktree 2's PR is merged into worktree 1's branch with `gh pr merge`. After that merge the parent branch has to be brought up to date where it is checked out, and the child branch is not an ancestor of the default branch, so the sweep only ever called it "review". `worktree-sweep` knew only the default branch.
