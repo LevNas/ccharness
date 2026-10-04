@@ -189,8 +189,9 @@ def sync_worktrees(top, pull):
                          f"{up}: not pulled (decide how to integrate)")
         elif pid is not None and alive(pid):
             notes.append(f"{branch} in {where} is {behind} behind {up} and in use (locked by "
-                         f"process {pid}): not touched. Run `{command}`, or `git pull --ff-only` "
-                         "from inside it")
+                         f"process {pid}): not touched"
+                         + (" (it also has tracked changes)" if dirty else "")
+                         + f". Run `{command}`, or `git pull --ff-only` from inside it")
         elif rc:
             notes.append(f"{branch} in {where} is {behind} behind {up}, but `git status` failed "
                          "there: not pulled")

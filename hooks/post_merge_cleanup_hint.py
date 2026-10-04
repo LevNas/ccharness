@@ -2,7 +2,8 @@
 """Cleanup hint after a merged PR (PostToolUse(Bash)).
 
 After `gh pr merge` the same tidy-up follows every time: leave the worktree, bring the branch the PR
-merged into up to date (the default branch, or the parent of a stacked worktree), remove what is left. The `worktree-sweep` skill computes that, but nothing made the session call it,
+merged into up to date (the default branch, or the parent of a stacked worktree), remove what is
+left. The `worktree-sweep` skill computes that, but nothing made the session call it,
 and its listing does not come back after compaction. This hook creates the moment to call it.
 
 Context only: it never runs the sweep (the session is usually inside a linked worktree, which the script
