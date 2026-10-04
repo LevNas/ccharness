@@ -1,6 +1,6 @@
 # ccharness
 
-Ship-time harness for Claude Code. It puts the behavioural rules that every session must know into the repository, blocks the few shell commands that must never run from an agent session, and keeps the rest as lazily loaded skills.
+Harness for Claude Code: ship-time rules and guards for a repository, and the pieces that decide how work is distributed inside one session (a leaf agent catalog with pinned models, parallel worktrees, cleanup). It puts the behavioural rules that every session must know into the repository, blocks the few shell commands that must never run from an agent session, and keeps the rest as lazily loaded skills.
 
 **Official first.** Wherever Claude Code already has a setting, an environment variable, a CLI flag or a memory mechanism for a job, ccharness uses it instead of a custom one. The plugin adds only what has no official equivalent.
 
@@ -10,9 +10,10 @@ Claude Code plugins cannot load a `CLAUDE.md` or `.claude/rules/` on their own: 
 
 - **Rules that cause an accident if unknown** are scaffolded into `.claude/rules/` (always-on).
 - **Opinionated command blocking** is scaffolded as official `permissions.deny` rules into `.claude/settings.json` (per repository, committed, opt-in).
-- **Behaviour skills** (session wrap-up, branch cleanup, Definition of Done, pre-work verification, local workspace files) are scaffolded into `.claude/skills/` so each repository owns and adapts them, and the plugin's always-on cost stays at two skill descriptions.
+- **Behaviour skills** (session wrap-up, branch cleanup, Definition of Done, pre-work verification, local workspace files) are scaffolded into `.claude/skills/` so each repository owns and adapts them, and the plugin's always-on cost stays at the skill and agent descriptions (measure it with `harness-budget`).
 - **Everything else** ships as plugin skills whose bodies load only when used.
-- **One hook** stays in the plugin: the hard-deny floor, for the handful of commands a deny rule cannot express.
+- **Hooks** stay few: the hard-deny floor for the handful of commands a deny rule cannot express, two small hints around worktrees and merges, and, for the agent catalog, a tier guard and a ledger.
+- **A leaf agent catalog** (below) pins the model and effort per leaf type, so how much a delegated step costs is decided by the definition, not by the main session's model.
 
 The split follows one question: *would starting work without knowing this cause an accident?*
 
@@ -30,7 +31,30 @@ The split follows one question: *would starting work without knowing this cause 
 | `hooks/post_merge_cleanup_hint.py` | PostToolUse(Bash) hook | After `gh pr merge` (not with `--auto` / `--disable-auto`): the cleanup order for two cases (in the merged branch's worktree: check for uncommitted files, ExitWorktree keep, `worktree-sweep` from the main checkout; in the PR's base branch's worktree, a stacked parent: `git pull --ff-only`), delete only when the user says so, never `--force`. Adds context only; runs and deletes nothing |
 | `scripts/worktree_sweep.py` + `skills/worktree-sweep` | inventory | Run from the main checkout: fetch, fast-forward the base branch and every linked worktree's branch that is behind its upstream when that loses nothing (a worktree in use by a live session only gets the command printed), and classify local branches and worktrees as delete (merged by ancestry, `git cherry`, or a PR merged into a parent branch that contains it; nothing uncommitted, untracked or ignored left), review (with the reason) or in-use. Report only; `session-end-cleanup` calls it |
 | `scripts/ship.py` + `skills/ship` | script + skill | After implementation: `commit` (listed files staged by name, staged set must equal the list, secret scan of added lines with optional `--scan-patterns`, refuses on the default branch), `push` (`-u origin <branch>`, never force or `--no-verify`), `check` (read-only PR summary: open, mergeable, clean, head and files match; GitHub only). The PR itself is created by a plain `gh pr create --body-file` between `push` and `check`, so PreToolUse guards see its title and body. Never merges |
+| `agents/` | agent catalog | Eight leaf agent types with model, effort and tools pinned in the frontmatter; see [Agent catalog](#agent-catalog) |
+| `hooks/agent_tier_guard.py` | PreToolUse(Agent\|Task) hook | For a `ccharness:<type>` of the catalog: denies a `model` override more than one tier above the model pinned in `agents/<type>.md` (haiku 1, sonnet 2, opus 3, fable and mythos 4; unknown model names are denied; `inherit` is allowed). The pinned tier is read from the frontmatter on every call. Off: `CCHARNESS_TIER_GUARD=off` |
+| `hooks/agent_ledger.py` | PostToolUse(Agent\|Task) and SubagentStop hook | One JSON line per agent launch and stop in `<main checkout>/.claude/ccharness/ledger.jsonl` (resume handles; never prompt bodies). Add `.claude/ccharness/` to `.gitignore`. See [docs/ledger.md](docs/ledger.md) |
+| `skills/parallel-worktree` | skill | Fan out file-disjoint tasks to `ccharness:worktree-worker` agents in worktrees (the limit is the official `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`), merge them with `--no-ff` in an integration worktree, ship that branch as a PR through the merge flow, and clean up only through `worktree-sweep` (no `--force`, no `git branch -D`) |
 | `scripts/measure_always_on.py` + `skills/harness-budget` | measurement | Bytes of always-on context: CLAUDE.md, rules, skill descriptions (capped at `skillListingMaxDescChars`) across project, user and enabled plugins; CLAUDE.md line counts against the official 200-line guideline; the skill listing estimated against its budget (1% of the context window in characters) |
+
+## Agent catalog
+
+Leaf agents for steps that do not need the main session's model. Each is a `ccharness:<type>` subagent type; model, effort and tools are pinned in `agents/<type>.md`. The orchestrator gives a closed task and judges the result; a leaf never judges its own quality. If a leaf's output fails acceptance, re-run it one tier up, at most once (the tier guard denies a larger jump).
+
+| Type | Purpose | Model | Effort |
+|---|---|---|---|
+| `web-research` | Questions needing three or more web sources; returns a cited digest | sonnet | low |
+| `web-refuter` | Hunts for disconfirming evidence for a decision-grade claim | sonnet | high |
+| `log-distiller` | Reduces test, build and log output to the lines that matter (read-only) | haiku | low |
+| `kb-integrator` | Integrates ten or more knowledge-base entries into a cited synthesis map (read-only) | sonnet | medium |
+| `knowledge-recorder` | Drafts knowledge-base entries the caller has already decided to record | sonnet | medium |
+| `pbr-reviewer` | Reviews a document set through one assigned perspective | sonnet | medium |
+| `worktree-worker` | One closed implementation task in an isolated worktree, with a file-ownership list | sonnet | low |
+| `impl-verifier` | Runs the named checks against acceptance criteria and reports evidence; never fixes | sonnet | medium |
+
+A single known URL needs no leaf: fetch it directly with WebFetch. The former `url-extract` leaf is retired, since WebFetch's tool description states that it answers through a small fast model, so a haiku wrapper would summarize twice and add the cost of a spawn.
+
+These came from ccorch (0.4.0), which, if installed, keeps the `/ccor` tmux panes for splitting work into separate sessions. While ccorch 0.4.0 is still installed alongside, each spawn is recorded in both ledgers (harmless), and its `/ccor-parallel` (which still uses `--force` and `branch -D`) and its tier guard overlap with this release; ccorch 0.5.0 removes them, and until then use `parallel-worktree`.
 
 Scaffolded rule files start with a marker line, `<!-- ccharness template v0.2.0 (ja) -->` (skills carry it right after the frontmatter), so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
 
@@ -83,7 +107,7 @@ The standard tier uses Claude Code's own rule engine, which already splits compo
 - Every hook, temporarily: `"disableAllHooks": true` in a settings file, or `claude --settings '{"disableAllHooks": true}'` for one run.
 - A deny rule you do not want: remove it from `.claude/settings.json`; the scaffold will only report it as missing, never re-add it.
 
-There is no ccharness-specific switch or environment variable.
+The one ccharness-specific switch is `CCHARNESS_TIER_GUARD=off`, which turns off the agent tier guard only (for example in the `env` block of a settings file).
 
 ### Ownership: ccharness vs ccguard
 
@@ -127,6 +151,7 @@ python3 tests/test_measure.py          # always-on budget measurement
 python3 tests/test_worktree_sweep.py   # branch/worktree inventory against real repositories
 python3 -m unittest discover -s tests  # includes the stacked-worktree sync and merged-into-parent tests
 python3 tests/test_ship.py              # commit / push / check against temporary repositories
+python3 -m unittest tests.test_agent_tier_guard tests.test_agent_ledger   # tier guard and ledger hooks
 ```
 
 ## License
