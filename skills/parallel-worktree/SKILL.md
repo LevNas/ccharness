@@ -2,7 +2,7 @@
 name: parallel-worktree
 description: Fan out file-ownership-disjoint implementation tasks to parallel worktree-isolated subagents (ccharness:worktree-worker), preserve their captures, merge the worker branches in an integration worktree, then ship the integration branch as a PR through the repository's merge flow. Use for two or more closed tasks in one repository that share no files.
 license: MIT
-allowed-tools: Bash, Read, Grep, Glob, Agent
+allowed-tools: Bash, Read, Write, Grep, Glob, Agent, Skill, EnterWorktree, ExitWorktree
 ---
 
 # parallel-worktree
@@ -75,7 +75,7 @@ For each completed worker with changes, its worktree (`.claude/worktrees/agent-<
 
 The integration branch goes through the repository's normal merge flow; this skill never merges and never touches the base branch.
 
-1. Enter the integration worktree with `EnterWorktree` (action: `path`). `ship push` pushes the CURRENT branch, and the orchestrator itself sits on the base branch in the main checkout, so the push must run from inside the integration worktree.
+1. Enter the integration worktree with `EnterWorktree`, `path` set to `.claude/worktrees/integration-<slug>` (this is the one deliberate entry into a worktree, after Phase 3 is complete; the rule above is about orchestrating). `ship push` pushes the CURRENT branch, and the orchestrator itself sits on the base branch in the main checkout, so the push must run from inside the integration worktree.
 2. Commit anything left, with the `ship` skill (`ship commit --files ... --message-file ...`), then `ship push`.
 3. Open the PR with a plain `gh pr create --draft --body-file <file>` (as the `ship` skill describes) and run the repository's merge-time review. Merge **only on the user's word**, and with a **merge commit**.
 4. After the merge, leave the integration worktree (`ExitWorktree`, action `keep`) and run the `worktree-sweep` skill from the main checkout. Remove the worker worktrees and branches, and the integration worktree and branch, only through the sweep's delete-class commands, on the user's word. Do not add `--force` to `git worktree remove` and do not use `git branch -D` on your own.

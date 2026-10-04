@@ -1,6 +1,6 @@
 # ccharness
 
-Ship-time harness for Claude Code. It puts the behavioural rules that every session must know into the repository, blocks the few shell commands that must never run from an agent session, and keeps the rest as lazily loaded skills.
+Harness for Claude Code: ship-time rules and guards for a repository, and the pieces that decide how work is distributed inside one session (a leaf agent catalog with pinned models, parallel worktrees, cleanup). It puts the behavioural rules that every session must know into the repository, blocks the few shell commands that must never run from an agent session, and keeps the rest as lazily loaded skills.
 
 **Official first.** Wherever Claude Code already has a setting, an environment variable, a CLI flag or a memory mechanism for a job, ccharness uses it instead of a custom one. The plugin adds only what has no official equivalent.
 
@@ -10,7 +10,7 @@ Claude Code plugins cannot load a `CLAUDE.md` or `.claude/rules/` on their own: 
 
 - **Rules that cause an accident if unknown** are scaffolded into `.claude/rules/` (always-on).
 - **Opinionated command blocking** is scaffolded as official `permissions.deny` rules into `.claude/settings.json` (per repository, committed, opt-in).
-- **Behaviour skills** (session wrap-up, branch cleanup, Definition of Done, pre-work verification, local workspace files) are scaffolded into `.claude/skills/` so each repository owns and adapts them, and the plugin's always-on cost stays at two skill descriptions.
+- **Behaviour skills** (session wrap-up, branch cleanup, Definition of Done, pre-work verification, local workspace files) are scaffolded into `.claude/skills/` so each repository owns and adapts them, and the plugin's always-on cost stays at the skill and agent descriptions (measure it with `harness-budget`).
 - **Everything else** ships as plugin skills whose bodies load only when used.
 - **Hooks** stay few: the hard-deny floor for the handful of commands a deny rule cannot express, two small hints around worktrees and merges, and, for the agent catalog, a tier guard and a ledger.
 - **A leaf agent catalog** (below) pins the model and effort per leaf type, so how much a delegated step costs is decided by the definition, not by the main session's model.
