@@ -1,6 +1,6 @@
 ---
 name: worktree-sweep
-description: From the main checkout, fetch, fast-forward the base branch and classify leftover branches and worktrees as delete / review / in-use with the commands to run. Report only. Called by session-end-cleanup; use at session end, after a merge, or when asked to tidy branches.
+description: From the main checkout, fetch, fast-forward the base branch and classify leftover branches and worktrees as delete / review / in-use with the commands to run. Report only. Called by session-end-cleanup; use at session end, after a merge (the post-merge hint hook prompts for it after `gh pr merge`), or when asked to tidy branches.
 license: MIT
 allowed-tools: Bash, Read
 ---
