@@ -78,6 +78,11 @@ class OnEnter(unittest.TestCase):
         self.assertIn("script file", text)
         # `git -C` to the main checkout is itself refused; a shell variable in a path would be too.
         self.assertNotIn("git -C <path>", text)
+        # Measured: chains of plain commands almost always pass (0.6% refused); do not call them refused.
+        # A shell script file passed in a live check, as a Python one does.
+        self.assertNotIn("Refused: chains", text)
+        self.assertIn("almost always passes", text)
+        self.assertIn("bash /abs/path.sh", text)
         self.assertNotIn("$CLAUDE_JOB_DIR", text)
 
     def test_other_tools_get_nothing(self):

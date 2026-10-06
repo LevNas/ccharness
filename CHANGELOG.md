@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.2
+
+0.9.1's entry hint said that chains (`&&`, `;`, `|`), heredocs, `python3 -c`, variables and loops are refused. A live check after the release showed that a chain with a heredoc and a variable assignment with a `github.com` path both passed. 0.9.1 was built from refused commands only; this release compares them with the commands that passed. Over 4,424 Bash commands run in worktrees in one user's transcripts (since the first isolation refusal), the share refused was about half with a loop, 30% with a variable or `$(...)`, 23% with a heredoc, 17% with `python3 -c` or `python3 -`, 0.6% for chains of plain commands with literal values, and 0.1% for single plain commands. The rates are rough: a command counts as "in a worktree" by its working directory.
+
+- `hooks/worktree_isolation_hint.py`: the entry hint gives these forms as the ones the check most often refuses, with their rates, and says a chain of plain commands with literal paths almost always passes. The general split rewrite names loops, variables, `$(...)` and inline scripts as the usual causes instead of calling every chain refused. The script-file rewrites also name `bash /abs/x.sh`, which passed in the live check (a script with a variable, a chain and a loop inside).
+- README row and a test that the entry hint no longer calls chains refused.
+
 ## 0.9.1
 
 The worktree isolation hint described the check as narrower than it is. Replaying every isolation refusal in one user's session transcripts (150 refused Bash commands) showed that 83 of them ran no git at all: the check refuses chains, heredocs, `python3 -c`, variables and loops whether or not git is involved, and it counts `git` inside another word (a `github.com` path) once the command is not a single plain one. The hook still answered most of those with "one git command per call" (74 of the 83). Refusals fell from 4–25 a day to 2–3 a day after 0.5.0 added the hook; this targets the rest.
