@@ -5,13 +5,12 @@
 0.9.1's entry hint said that chains (`&&`, `;`, `|`), heredocs, `python3 -c`, variables and loops are refused. A live check after the release showed that a chain with a heredoc and a variable assignment with a `github.com` path both passed. 0.9.1 was built from refused commands only; this release compares them with the commands that passed. Over the 4,319 Bash commands run after EnterWorktree in one user's transcripts (measured 2026-10-06), the share refused was 55% with a loop, 32% with a variable or `$(...)`, 21% with a heredoc, 15% with `python3 -c` or `python3 -`, 0.6% for chains of plain commands with literal values (0.7% for those that name git), and 0.1% for single plain commands. A script file run by absolute path was never refused (`python3 /abs/x.py` 209 times, `bash /abs/x.sh` 34 times). The check is Claude Code's own and changes between releases, so the rates are a guide, not a rule.
 
 - `hooks/worktree_isolation_hint.py`:
-  - the entry hint gives these forms as the ones the check most often refuses, with rough rates, and says a single plain command or a chain of plain commands with literal paths almost always passes, with or without git;
-  - the general split rewrite names loops, variables, `$(...)` and inline scripts as the usual causes instead of calling every chain refused, and keeps one command per call as the safest retry;
-  - the no-git note says a chain of plain commands usually passes, instead of "make it one plain command";
+  - the entry hint gives these forms as the ones the check most often refused in past sessions, with rough rates and a note that the check changes between Claude Code releases, and says a single plain command or a chain of plain commands with literal paths almost always passed, with or without git;
+  - after a refusal, the general split rewrite and the no-git note say that this command was refused even if it looks plain, so it should not be retried as another chain, and give one command per call or a script file as the retry. The split rewrite names loops, variables, `$(...)` and inline scripts as the usual causes instead of calling every chain refused; the no-git note no longer says "make it one plain command" as a rule;
   - the script-file rewrites also name `bash /abs/x.sh`;
   - the docstring gives the measurement, its date and how commands were counted.
 - README row.
-- Tests: the entry hint no longer calls chains refused; the refusal-time rewrites agree with it on chains and name `bash /abs/x.sh`; no hint text runs two sentences together; every joined text piece ends with a space.
+- Tests: the entry hint no longer calls chains refused and says its rates may change; the refusal-time rewrites tell the model not to retry the refused form as another chain, and name `bash /abs/x.sh`; no module-level hint text runs two sentences together; every joined text piece ends with a space.
 
 ## 0.9.1
 

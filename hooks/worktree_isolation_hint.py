@@ -37,13 +37,13 @@ ON_ENTER = (
     "ccharness: this session is now isolated in a worktree. Claude Code checks each Bash command's text and "
     "refuses a command it cannot show stays inside the worktree, whether or not it runs git. Its refusals "
     "speak of values that could become a command name or an option, and of text that names git, including "
-    "`git` inside a `github.com` path. In real sessions it refused about half of the commands with a loop, "
-    "about a third of those with a variable or `$(...)`, about a fifth of those with a heredoc and some with "
-    "`python3 -c`; also computed `-C` / `cd` targets, `git -C` to the main checkout, and inline text that "
-    "mentions git passed to `gh` or `tmux`. A single plain command, or a chain of plain commands with "
-    "literal paths, almost always passes, with or without git. Also passes: file edits with Edit/Write "
-    "instead of sed; steps that need loops or variables written with the Write tool to a script file and run "
-    "as `python3 /abs/path.py` or `bash /abs/path.sh`; "
+    "`git` inside a `github.com` path. In past sessions (rough rates; the check changes between Claude Code "
+    "releases) it refused about half of the commands with a loop, about a third of those with a variable or "
+    "`$(...)`, about a fifth of those with a heredoc and some with `python3 -c`; also computed `-C` / `cd` "
+    "targets, `git -C` to the main checkout, and inline text that mentions git passed to `gh` or `tmux`. A "
+    "single plain command, or a chain of plain commands with literal paths, almost always passed, with or "
+    "without git. Also passes: file edits with Edit/Write instead of sed; steps that need loops or variables "
+    "written with the Write tool to a script file and run as `python3 /abs/path.py` or `bash /abs/path.sh`; "
     "`gh ... --body-file <file>`. For the main checkout or another repository, leave first (ExitWorktree, "
     "action keep)."
 )
@@ -67,19 +67,19 @@ TEXT_FILE = (
     "(or `-F <file>`) for gh; for tmux, put the call in a script file and run that."
 )
 SPLIT = (
-    "Rewrite it as plain commands with literal paths, whether or not it runs git; after a refusal, one per "
-    "call is the safest. Loops, variables, `$(...)` and scripts fed inline are what usually get a command "
-    "refused; put steps that need "
-    "them in a script file written with the Write tool and run as `python3 /abs/x.py` or `bash /abs/x.sh`. "
-    "For diff or log output, write it to a file (`git diff --output=<file>`) and read the file in the next "
-    "call. If the command touches another repository, even read-only, leave the worktree first (ExitWorktree, "
-    "action keep), or check its state without git (`ls`, `gh api`)."
+    "Split it into plain commands with literal paths, one per call, whether or not it runs git. This command "
+    "was refused even if it looks plain, so do not retry it as another chain. Loops, variables, `$(...)` and "
+    "scripts fed inline are the usual causes; put steps that need them in a script file written with the "
+    "Write tool and run as `python3 /abs/x.py` or `bash /abs/x.sh`. For diff or log output, write it to a file "
+    "(`git diff --output=<file>`) and read the file in the next call. If the command touches another "
+    "repository, even read-only, leave the worktree first (ExitWorktree, action keep), or check its state "
+    "without git (`ls`, `gh api`)."
 )
 NO_GIT = (
     "Nothing in this command's text runs git, but the check refuses any command it cannot verify, and it "
-    "counts `git` inside another word{where} or inside quoted text. Use plain commands with literal values "
-    "(a chain of them usually passes), or write the steps to a script file with the Write tool and run "
-    "`python3 /abs/x.py` or `bash /abs/x.sh`."
+    "counts `git` inside another word{where} or inside quoted text. This command was refused, so do not retry "
+    "it as another chain: run its steps as plain commands with literal values, one per call, or write them "
+    "to a script file with the Write tool and run `python3 /abs/x.py` or `bash /abs/x.sh`."
 )
 
 # (words from the refusal, rewrite), checked against refusals worded by Claude Code in real sessions.

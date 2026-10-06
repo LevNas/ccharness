@@ -83,7 +83,9 @@ class OnEnter(unittest.TestCase):
         self.assertNotIn("Refused: chains", text)
         # The texts are built from adjacent string literals; a lost space joins two sentences.
         self.assertNotRegex(text, r"[a-z)`][.;:][A-Z]")
-        self.assertIn("almost always passes", text)
+        self.assertIn("almost always passed", text)
+        # The rates are from past sessions; the emitted text says so, not only the CHANGELOG.
+        self.assertIn("the check changes between Claude Code releases", text)
         self.assertIn("bash /abs/path.sh", text)
         self.assertNotIn("$CLAUDE_JOB_DIR", text)
 
@@ -241,8 +243,11 @@ class FromTheCommand(unittest.TestCase):
 
     def test_refusal_hints_agree_with_the_entry_hint_on_chains(self):
         _, text = failure(TOO_COMPLEX, command=PLAIN_CHAIN_NO_GIT)
-        self.assertIn("a chain of them usually passes", text)
-        self.assertNotIn("Make it one plain command", text)
+        # After a refusal, the base rate ("chains usually pass") invites a retry of the same form; say this one
+        # was refused and give the safe retry.
+        self.assertIn("do not retry it as another chain", text)
+        self.assertIn("one per call", text)
+        self.assertNotIn("usually pass", text)
         self.assertIn("bash /abs/x.sh", text)
         _, text = failure(HEREDOC, command=HEREDOC_NO_GIT)
         self.assertIn("bash /abs/path/to/x.sh", text)
@@ -272,6 +277,12 @@ class Quiet(unittest.TestCase):
         self.assertIsNone(run({"hook_event_name": "PostToolUseFailure", "tool_name": "Bash", "error": 42}))
 
 
+def is_raw_or_docstring(token):
+    """True for a raw string (any case of the r prefix, alone or with b/f) or a triple-quoted string."""
+    prefix = token[:len(token) - len(token.lstrip("rRbBfFuU"))]
+    return "r" in prefix.lower() or token[len(prefix):].startswith(('"""', "'''"))
+
+
 class TextJoins(unittest.TestCase):
     def test_every_joined_text_piece_ends_with_a_space(self):
         # The hint texts are adjacent string literals; a piece that does not end with a space runs two words
@@ -282,7 +293,7 @@ class TextJoins(unittest.TestCase):
             toks = [t for t in tokenize.generate_tokens(io.StringIO(f.read()).readline)
                     if t.type not in (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT)]
         joins = [(a, b) for a, b in zip(toks, toks[1:])
-                 if a.type == tokenize.STRING and b.type == tokenize.STRING and not a.string.startswith(("r", '"""'))]
+                 if a.type == tokenize.STRING and b.type == tokenize.STRING and not is_raw_or_docstring(a.string)]
         self.assertGreater(len(joins), 10, "the texts are still built from joined pieces")
         for a, _ in joins:
             self.assertTrue(a.string[:-1].endswith(" "), f"line {a.start[0]}: {a.string[-30:]}")
@@ -293,8 +304,10 @@ class TextJoins(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("worktree_isolation_hint", HOOK)
         hook = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hook)
-        texts = [hook.ON_ENTER, hook.SCRIPT_FILE, hook.LITERAL, hook.EDIT_TOOL, hook.LEAVE, hook.TEXT_FILE,
-                 hook.SPLIT, hook.NO_GIT.format(where="")]
+        # Every module-level text constant, so a new hint is checked without being listed here.
+        texts = [value.replace("{where}", "") for name, value in vars(hook).items()
+                 if name.isupper() and isinstance(value, str)]
+        self.assertGreaterEqual(len(texts), 8)
         for text in texts:
             self.assertNotRegex(text, r"[a-z)`][.;:?!][A-Z]")
             self.assertNotIn("  ", text)
