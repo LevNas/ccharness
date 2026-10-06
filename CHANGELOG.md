@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1
+
+The worktree isolation hint described the check as narrower than it is. Replaying every isolation refusal in one user's session transcripts (150 refused Bash commands) showed that 83 of them ran no git at all: the check refuses chains, heredocs, `python3 -c`, variables and loops whether or not git is involved, and it counts `git` inside another word (a `github.com` path) once the command is not a single plain one. The hook still answered most of those with "one git command per call" (74 of the 83). Refusals fell from 4–25 a day to 2–3 a day after 0.5.0 added the hook; this targets the rest.
+
+- `hooks/worktree_isolation_hint.py`: on a refusal, the rewrite is now also chosen from the refused command (`tool_input.command`, which the PostToolUseFailure input carries): a heredoc or `python3 -c` / `python3 -` gets the script-file rewrite, `$(...)`, `${...}`, `$NAME`, a leading `NAME=` or a loop gets the literal-values rewrite, inline text naming git passed to `gh` or `tmux` gets the file rewrite, and a command whose text runs no git gets a note saying so (naming the `github.com` path when that is what the check counted). Without a usable `tool_input`, the refusal's words alone choose, as before.
+- The general rewrite no longer says "one git command per call": it says to split into plain commands, one per call, and to put several steps in a script file. A refusal worded "runs tmux with the text" now gets the file rewrite instead of the general one.
+- The entry hint says the check refuses forms whether or not they run git, and that a `github.com` path counts.
+- On the replayed refusals: "one git command per call" for a command running no git, 74 → 0; a note that the command runs no git, 0 → 83, and never on a command that does; every heredoc or inline script (35) points to a script file; every `github.com`-only case (39) names it.
+- Tests: refusals and commands from real sessions (paths replaced), a payload without `tool_input` and with a non-string one. 10 of the new or changed tests fail on 0.9.0.
+
 ## 0.9.0
 
 The leaf agent catalog, the parallel worktree skill, the tier guard and the agent ledger move here from ccorch (0.4.0). The two plugins are re-split by axis: ccharness is how work is distributed INSIDE one session (who does a step: script, least-privilege subagent or main session; at what cost: model and effort pinned per leaf type; cleanup). ccorch keeps only the splitting of work into SEPARATE sessions (`/ccor` panes). A second reason: ccorch's `/ccor-parallel` cleaned up with `git worktree remove --force` and `git branch -D`, which contradicts `worktree-sweep` (no `--force`; `-D` only with proof). With the skill here, one cleanup path wins.
