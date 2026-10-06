@@ -74,7 +74,7 @@ class OnEnter(unittest.TestCase):
             self.assertIn(words, text)
         # The check refuses forms, not only git: say so, and name the github.com path case.
         self.assertIn("whether or not it runs git", text)
-        self.assertIn("github.com", text)
+        self.assertIn("including `git` inside a `github.com` path", text, "not only for gh/tmux text")
         self.assertIn("script file", text)
         # `git -C` to the main checkout is itself refused; a shell variable in a path would be too.
         self.assertNotIn("git -C <path>", text)
