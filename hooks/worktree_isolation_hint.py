@@ -85,14 +85,18 @@ GENERAL = SPLIT
 
 # Only so much of a command is scanned, so a huge one-line command cannot stall the hook.
 _MAX_SCAN = 8000
-# `git` as a command: `git`, `/usr/bin/git`, `git-lfs`. Errs towards "git": a false "git" only drops the
-# no-git note, a false "no git" would tell the model something untrue. Not `.git`, `legit`, `github`.
-_GIT_WORD = re.compile(r"(?<![\w.-])git(?!\w)")
+# Something that may run git: `git`, `/usr/bin/git`, `git-lfs`, `gitk`, other git front ends, and gh
+# subcommands that clone or check out. Errs towards "git": a false "git" only drops the no-git note, a
+# false "no git" would tell the model something untrue. Not `.git`, `.gitignore`, `legit`, `digit`,
+# `github`. Searched over the whole command (it is linear), and also with quotes and backslashes removed,
+# so `gi''t` and `g\it` count.
+_GIT_WORD = re.compile(r"(?<![\w.-])(?:git(?!hub)[\w-]*|lazygit|tig|glab)\b"
+                       r"|\bgh\s+(?:pr\s+checkout|repo\s+(?:clone|sync|fork))\b")
 # `python3 -c` / `python3 -` (a script on stdin), `node -e`, `perl -e`, `ruby -e`, `bash -c`.
 _INLINE_SCRIPT = re.compile(r"\b(?:python3?\s+(?:-c\b|-(?:\s|$))|(?:node|perl|ruby)\s+-e\b|(?:ba|z)?sh\s+-c\b)")
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)")
 # `$(...)`, `${...}`, `$NAME`, `$?`, `$1`, or `NAME=` at the start of a command (not `-f title=x`).
-_COMPUTED = re.compile(r"\$[({A-Za-z_0-9?#@*!$]|(?:^|[;&|(\n])\s*[A-Za-z_][A-Za-z0-9_]*=")
+_COMPUTED = re.compile(r"\$[({A-Za-z_0-9?#@*!$]|(?:^|[;&|(\n])[ \t]*[A-Za-z_][A-Za-z0-9_]*=")
 _LOOP_START = re.compile(r"\b(?:for|while|until)\b")
 _LOOP_DO = re.compile(r"\bdo\b")
 _SINGLE_QUOTED = re.compile(r"'[^']*'")
@@ -104,12 +108,17 @@ def rewrites_for(error: str) -> list[str]:
     return [text for words, text in REWRITES if any(w in low for w in words)]
 
 
+def _may_run_git(command: str) -> bool:
+    return bool(_GIT_WORD.search(command) or _GIT_WORD.search(re.sub(r"['\"\\]", "", command)))
+
+
 def rewrites_for_command(command: str) -> list[str]:
     """Rewrites chosen from the form of the refused command itself."""
+    may_run_git = _may_run_git(command)  # over the whole command, before the cap
     command = command[:_MAX_SCAN]
     unquoted = _QUOTED.sub("''", command)  # text inside quotes is not shell syntax
     tips = []
-    if _HEREDOC.search(unquoted) or _INLINE_SCRIPT.search(command):
+    if _HEREDOC.search(unquoted) or _INLINE_SCRIPT.search(unquoted):
         tips.append(SCRIPT_FILE)
     # `$NF` in awk's single-quoted program is not a shell variable; double quotes do expand.
     if _COMPUTED.search(_SINGLE_QUOTED.sub("''", command)) or (
@@ -118,7 +127,7 @@ def rewrites_for_command(command: str) -> list[str]:
     if re.search(r"\b(?:gh|tmux)\b", unquoted) and any(
             _GIT_WORD.search(q) for q in _QUOTED.findall(command)):
         tips.append(TEXT_FILE)
-    if not _GIT_WORD.search(command):
+    if not may_run_git:
         where = " (this command contains `github.com`)" if "github.com" in command.lower() else ""
         tips.append(NO_GIT.format(where=where))
     return tips

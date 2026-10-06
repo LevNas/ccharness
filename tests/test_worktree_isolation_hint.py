@@ -150,6 +150,25 @@ class FromTheCommand(unittest.TestCase):
             _, text = failure(TOO_COMPLEX, command=command)
             self.assertNotIn("Nothing in this command's text runs git", text, command)
 
+    def test_git_beyond_the_scan_cap_is_still_git(self):
+        for command in ("python3 - <<'EOF'\n" + "#" * 8100 + "\nimport subprocess; subprocess.run(['git','log'])\nEOF",
+                        "echo " + "a " * 4100 + "&& git log"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("Nothing in this command's text runs git", text)
+
+    def test_git_front_ends_and_spellings_are_git(self):
+        for command in ("gitk --all; ls", "lazygit; ls", "tig; ls", "gh pr checkout 1 && ls",
+                        "gh repo clone o/r x; ls", "gi''t log; ls", "g\\it log; ls", "git.exe log; ls"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("Nothing in this command's text runs git", text, command)
+
+    def test_quoted_prose_is_not_an_inline_script(self):
+        for command in ('git commit -m "fix python3 -c handling" && ls', 'gh pr create --body "uses bash -c" | head'):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("heredoc", text, command)
+        _, text = failure(TOO_COMPLEX, command='python3 -c "print(1)" | head')
+        self.assertIn("heredoc", text)
+
     def test_git_inside_other_words_is_not_git(self):
         for command in ("ls .git/hooks; ls", "echo legit; ls", "cat .gitignore | head",
                         "grep -c x ~/src/github.com/o/r/a.md | head"):
@@ -177,7 +196,8 @@ class FromTheCommand(unittest.TestCase):
 
     def test_huge_one_line_commands_stay_fast(self):
         import time
-        for command in ("for " * 50000, "gh x '" + "git " * 20000, "'" * 40000 + "\"" * 40000):
+        for command in ("for " * 50000, "gh x '" + "git " * 20000, "'" * 40000 + "\"" * 40000,
+                        "\n" * 100000, "x" * 200000 + " git"):
             start = time.monotonic()
             failure(TOO_COMPLEX, command=command)
             self.assertLess(time.monotonic() - start, 3.0, command[:20])
