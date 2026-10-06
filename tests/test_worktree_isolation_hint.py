@@ -135,10 +135,52 @@ class FromTheCommand(unittest.TestCase):
     def test_github_path_only_names_git_and_points_to_one_command_or_a_script(self):
         _, text = failure(COMPLEX, command=LINT_VIA_GITHUB_PATH)
         self.assertIn("Nothing in this command's text runs git", text)
-        self.assertIn("`github.com` in a path", text)
+        self.assertIn("contains `github.com`", text)
         self.assertIn("python3 /abs/x.py", text)
         self.assertIn("Spell values out", text, "the variable L and $PWD")
         self.assertNotIn("one git command per call", text)
+        self.assertNotIn("git diff --output", text, "the git-specific split advice gives way to the no-git note")
+
+    def test_git_by_path_or_helper_is_git(self):
+        # A false "runs no git" would tell the model something untrue.
+        for command in ("/usr/bin/git status", "~/bin/git status && ls", "./git x; ls",
+                        "cd /x && /usr/local/bin/git log", "git-lfs ls; ls",
+                        "python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['/usr/bin/git', 'log'])\nEOF",
+                        "for d in a b; do git -C $d status; done"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("Nothing in this command's text runs git", text, command)
+
+    def test_git_inside_other_words_is_not_git(self):
+        for command in ("ls .git/hooks; ls", "echo legit; ls", "cat .gitignore | head",
+                        "grep -c x ~/src/github.com/o/r/a.md | head"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertIn("Nothing in this command's text runs git", text, command)
+
+    def test_github_note_only_when_github_com_appears(self):
+        _, text = failure(TOO_COMPLEX, command="ls githubx; ls")
+        self.assertNotIn("github.com", text)
+
+    def test_single_quoted_dollar_is_not_a_variable(self):
+        for command in ("awk '{print $NF}' f | head", "gh api graphql -f query='query($owner:String!){x}' | jq ."):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("Spell values out", text, command)
+        for command in ("ls; echo $?", 'echo "$HOME/x" | head', "ls\nX=1 ls"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertIn("Spell values out", text, command)
+
+    def test_here_string_and_quoted_angles_are_not_heredocs(self):
+        for command in ("cat <<< foo | head", "echo 'a << b' | head", "perl -c x.pl; ls"):
+            _, text = failure(TOO_COMPLEX, command=command)
+            self.assertNotIn("heredoc", text, command)
+        _, text = failure(TOO_COMPLEX, command="perl -e 'print 1' | head")
+        self.assertIn("heredoc", text)
+
+    def test_huge_one_line_commands_stay_fast(self):
+        import time
+        for command in ("for " * 50000, "gh x '" + "git " * 20000, "'" * 40000 + "\"" * 40000):
+            start = time.monotonic()
+            failure(TOO_COMPLEX, command=command)
+            self.assertLess(time.monotonic() - start, 3.0, command[:20])
 
     def test_heredoc_without_git_points_to_a_script_file(self):
         _, text = failure(TOO_COMPLEX, command=HEREDOC_NO_GIT)

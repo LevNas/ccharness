@@ -4,11 +4,17 @@
 
 The worktree isolation hint described the check as narrower than it is. Replaying every isolation refusal in one user's session transcripts (150 refused Bash commands) showed that 83 of them ran no git at all: the check refuses chains, heredocs, `python3 -c`, variables and loops whether or not git is involved, and it counts `git` inside another word (a `github.com` path) once the command is not a single plain one. The hook still answered most of those with "one git command per call" (74 of the 83). Refusals fell from 4–25 a day to 2–3 a day after 0.5.0 added the hook; this targets the rest.
 
-- `hooks/worktree_isolation_hint.py`: on a refusal, the rewrite is now also chosen from the refused command (`tool_input.command`, which the PostToolUseFailure input carries): a heredoc or `python3 -c` / `python3 -` gets the script-file rewrite, `$(...)`, `${...}`, `$NAME`, a leading `NAME=` or a loop gets the literal-values rewrite, inline text naming git passed to `gh` or `tmux` gets the file rewrite, and a command whose text runs no git gets a note saying so (naming the `github.com` path when that is what the check counted). Without a usable `tool_input`, the refusal's words alone choose, as before.
+- `hooks/worktree_isolation_hint.py`: on a refusal, the rewrite is now also chosen from the refused command (`tool_input.command`, which the PostToolUseFailure input carries; at most the first 8,000 characters are scanned, so a huge command cannot stall the hook):
+  - a heredoc (not `<<<`, not `<<` inside quotes), `python3 -c` / `python3 -`, `node`/`perl`/`ruby -e` or `bash -c` → the script-file rewrite;
+  - `$(...)`, `${...}`, `$NAME`, `$?`, `$1`, a leading `NAME=` or a `for`/`while`/`until` … `do` loop → the literal-values rewrite (`$NF` inside single quotes, as in awk, and `-f title=x` arguments do not count);
+  - quoted text naming git passed to `gh` or `tmux` → the file rewrite;
+  - no `git` command in the text → a note that the check refuses such commands too (saying when the command contains `github.com`), in place of the general split rewrite, which speaks of git. `git` counts as a command when it stands alone or as a path or helper (`/usr/bin/git`, `git-lfs`), not inside `.git`, `.gitignore`, `legit`, `digit` or `github`. The test errs towards "git": a false "git" only drops the note.
+
+  Without a usable `tool_input`, the refusal's words alone choose, as before.
 - The general rewrite no longer says "one git command per call": it says to split into plain commands, one per call, and to put several steps in a script file. A refusal worded "runs tmux with the text" now gets the file rewrite instead of the general one.
 - The entry hint says the check refuses forms whether or not they run git, and that a `github.com` path counts.
-- On the replayed refusals: "one git command per call" for a command running no git, 74 → 0; a note that the command runs no git, 0 → 83, and never on a command that does; every heredoc or inline script (35) points to a script file; every `github.com`-only case (39) names it.
-- Tests: refusals and commands from real sessions (paths replaced), a payload without `tool_input` and with a non-string one. 10 of the new or changed tests fail on 0.9.0.
+- On the replayed refusals, the new hook gives the no-git note for 83 commands. Checked independently of the hook's own test: 74 of them contain no `git` outside `github`; the other 9 were read by hand (`digit`, `.gitignore`, `.git` paths, a file name with `git-` in it) and none runs git. 0.9.0 told 74 of those 83 "one git command per call"; this release tells none, and never gives the no-git note together with the git split advice.
+- Tests: refusals and commands from real sessions (paths replaced), git by path and helper, words that contain `git`, single-quoted `$`, here-strings, huge one-line commands, and payloads without `tool_input` or with a non-string one. 13 of the file's 27 tests fail on 0.9.0.
 
 ## 0.9.0
 

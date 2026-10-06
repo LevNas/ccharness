@@ -83,12 +83,20 @@ REWRITES = [
 ]
 GENERAL = SPLIT
 
-_GIT_WORD = re.compile(r"(?<![\w./-])git(?![\w-])")
-# `python3 -c ...` or a script on stdin (`python3 - <<EOF`).
-_INLINE_SCRIPT = re.compile(r"\b(python3?|node|perl|ruby|bash|sh|zsh)\s+(-c\b|-(\s|$))")
-# `$(...)`, `${...}`, `$NAME`, or `NAME=` at the start of a command (not `-f title=x` arguments).
-_COMPUTED = re.compile(r"\$\(|\$\{|\$[A-Za-z_]|(^|[;&|(]\s*)[A-Za-z_][A-Za-z0-9_]*=")
-_LOOP = re.compile(r"\b(for|while|until)\b[^\n]*\bdo\b")
+# Only so much of a command is scanned, so a huge one-line command cannot stall the hook.
+_MAX_SCAN = 8000
+# `git` as a command: `git`, `/usr/bin/git`, `git-lfs`. Errs towards "git": a false "git" only drops the
+# no-git note, a false "no git" would tell the model something untrue. Not `.git`, `legit`, `github`.
+_GIT_WORD = re.compile(r"(?<![\w.-])git(?!\w)")
+# `python3 -c` / `python3 -` (a script on stdin), `node -e`, `perl -e`, `ruby -e`, `bash -c`.
+_INLINE_SCRIPT = re.compile(r"\b(?:python3?\s+(?:-c\b|-(?:\s|$))|(?:node|perl|ruby)\s+-e\b|(?:ba|z)?sh\s+-c\b)")
+_HEREDOC = re.compile(r"(?<!<)<<(?!<)")
+# `$(...)`, `${...}`, `$NAME`, `$?`, `$1`, or `NAME=` at the start of a command (not `-f title=x`).
+_COMPUTED = re.compile(r"\$[({A-Za-z_0-9?#@*!$]|(?:^|[;&|(\n])\s*[A-Za-z_][A-Za-z0-9_]*=")
+_LOOP_START = re.compile(r"\b(?:for|while|until)\b")
+_LOOP_DO = re.compile(r"\bdo\b")
+_SINGLE_QUOTED = re.compile(r"'[^']*'")
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 
 
 def rewrites_for(error: str) -> list[str]:
@@ -98,15 +106,20 @@ def rewrites_for(error: str) -> list[str]:
 
 def rewrites_for_command(command: str) -> list[str]:
     """Rewrites chosen from the form of the refused command itself."""
+    command = command[:_MAX_SCAN]
+    unquoted = _QUOTED.sub("''", command)  # text inside quotes is not shell syntax
     tips = []
-    if "<<" in command or _INLINE_SCRIPT.search(command):
+    if _HEREDOC.search(unquoted) or _INLINE_SCRIPT.search(command):
         tips.append(SCRIPT_FILE)
-    if _COMPUTED.search(command) or _LOOP.search(command):
+    # `$NF` in awk's single-quoted program is not a shell variable; double quotes do expand.
+    if _COMPUTED.search(_SINGLE_QUOTED.sub("''", command)) or (
+            _LOOP_START.search(unquoted) and _LOOP_DO.search(unquoted)):
         tips.append(LITERAL)
-    if re.search(r"\b(gh|tmux)\b", command) and re.search(r"(['\"])[^'\"]*\bgit\b[^'\"]*\1", command):
+    if re.search(r"\b(?:gh|tmux)\b", unquoted) and any(
+            _GIT_WORD.search(q) for q in _QUOTED.findall(command)):
         tips.append(TEXT_FILE)
     if not _GIT_WORD.search(command):
-        where = " (here: `github.com` in a path)" if "github" in command.lower() else ""
+        where = " (this command contains `github.com`)" if "github.com" in command.lower() else ""
         tips.append(NO_GIT.format(where=where))
     return tips
 
@@ -123,7 +136,11 @@ def context(event: str, payload: dict) -> str | None:
         tool_input = payload.get("tool_input")
         command = tool_input.get("command") if isinstance(tool_input, dict) else None
         if isinstance(command, str) and command.strip():
-            tips += [t for t in rewrites_for_command(command) if t not in tips]
+            from_command = rewrites_for_command(command)
+            if any(t.startswith("Nothing in this command") for t in from_command):
+                # SPLIT speaks of git (diff output, other repositories); the no-git note replaces it.
+                tips = [t for t in tips if t is not SPLIT]
+            tips += [t for t in from_command if t not in tips]
         tips = tips or [GENERAL]
         return ("ccharness: the worktree isolation check refused this command because of its form, not what "
                 "it does. Do not retry a variation of the same form. " + " ".join(tips))
