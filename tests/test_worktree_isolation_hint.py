@@ -74,10 +74,19 @@ class OnEnter(unittest.TestCase):
             self.assertIn(words, text)
         # The check refuses forms, not only git: say so, and name the github.com path case.
         self.assertIn("whether or not it runs git", text)
-        self.assertIn("github.com", text)
+        self.assertIn("including `git` inside a `github.com` path", text, "not only for gh/tmux text")
         self.assertIn("script file", text)
         # `git -C` to the main checkout is itself refused; a shell variable in a path would be too.
         self.assertNotIn("git -C <path>", text)
+        # Measured: chains of plain commands almost always pass (0.6% refused); do not call them refused.
+        # A shell script file passed in a live check, as a Python one does.
+        self.assertNotIn("Refused: chains", text)
+        # The texts are built from adjacent string literals; a lost space joins two sentences.
+        self.assertNotRegex(text, r"[a-z)`][.;:][A-Z]")
+        self.assertIn("almost always passed", text)
+        # The rates are from past sessions; the emitted text says so, not only the CHANGELOG.
+        self.assertIn("the check changes between Claude Code releases", text)
+        self.assertIn("bash /abs/path.sh", text)
         self.assertNotIn("$CLAUDE_JOB_DIR", text)
 
     def test_other_tools_get_nothing(self):
@@ -226,6 +235,22 @@ class FromTheCommand(unittest.TestCase):
         _, text = failure(TOO_COMPLEX, command=GIT_CHAIN)
         self.assertIn("one per call", text)
         self.assertNotIn("Nothing in this command's text runs git", text)
+        # Measured: plain chains pass 99% of the time, with or without git; the rewrite names the usual causes
+        # instead of calling every chain refused, and offers a shell script file too.
+        self.assertNotIn("is refused whether or not", text)
+        self.assertIn("Loops, variables", text)
+        self.assertIn("bash /abs/x.sh", text)
+
+    def test_refusal_hints_agree_with_the_entry_hint_on_chains(self):
+        _, text = failure(TOO_COMPLEX, command=PLAIN_CHAIN_NO_GIT)
+        # After a refusal, the base rate ("chains usually pass") invites a retry of the same form; say this one
+        # was refused and give the safe retry.
+        self.assertIn("do not retry it as another chain", text)
+        self.assertIn("one per call", text)
+        self.assertNotIn("usually pass", text)
+        self.assertIn("bash /abs/x.sh", text)
+        _, text = failure(HEREDOC, command=HEREDOC_NO_GIT)
+        self.assertIn("bash /abs/path/to/x.sh", text)
 
     def test_arguments_with_equals_are_not_variables(self):
         _, text = failure(TOO_COMPLEX, command="gh api -X PATCH repos/o/r -f title=x | head -1")
@@ -250,6 +275,42 @@ class Quiet(unittest.TestCase):
         self.assertIsNone(run("{not json"))
         self.assertIsNone(run("[1, 2]"))
         self.assertIsNone(run({"hook_event_name": "PostToolUseFailure", "tool_name": "Bash", "error": 42}))
+
+
+def is_raw_or_docstring(token):
+    """True for a raw string (any case of the r prefix, alone or with b/f) or a triple-quoted string."""
+    prefix = token[:len(token) - len(token.lstrip("rRbBfFuU"))]
+    return "r" in prefix.lower() or token[len(prefix):].startswith(('"""', "'''"))
+
+
+class TextJoins(unittest.TestCase):
+    def test_every_joined_text_piece_ends_with_a_space(self):
+        # The hint texts are adjacent string literals; a piece that does not end with a space runs two words
+        # or sentences together ("passes.Also"). Raw strings (regexes) and docstrings are not hint text.
+        import io
+        import tokenize
+        with open(HOOK, encoding="utf-8") as f:
+            toks = [t for t in tokenize.generate_tokens(io.StringIO(f.read()).readline)
+                    if t.type not in (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT)]
+        joins = [(a, b) for a, b in zip(toks, toks[1:])
+                 if a.type == tokenize.STRING and b.type == tokenize.STRING and not is_raw_or_docstring(a.string)]
+        self.assertGreater(len(joins), 10, "the texts are still built from joined pieces")
+        for a, _ in joins:
+            self.assertTrue(a.string[:-1].endswith(" "), f"line {a.start[0]}: {a.string[-30:]}")
+
+    def test_no_text_runs_two_sentences_together(self):
+        # A lost space can also sit inside one piece after rewrapping ("passes.Also"); check every hint text.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("worktree_isolation_hint", HOOK)
+        hook = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hook)
+        # Every module-level text constant, so a new hint is checked without being listed here.
+        texts = [value.replace("{where}", "") for name, value in vars(hook).items()
+                 if name.isupper() and isinstance(value, str)]
+        self.assertGreaterEqual(len(texts), 8)
+        for text in texts:
+            self.assertNotRegex(text, r"[a-z)`][.;:?!][A-Z]")
+            self.assertNotIn("  ", text)
 
 
 if __name__ == "__main__":
