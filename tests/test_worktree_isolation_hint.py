@@ -81,6 +81,8 @@ class OnEnter(unittest.TestCase):
         # Measured: chains of plain commands almost always pass (0.6% refused); do not call them refused.
         # A shell script file passed in a live check, as a Python one does.
         self.assertNotIn("Refused: chains", text)
+        # The texts are built from adjacent string literals; a lost space joins two sentences.
+        self.assertNotRegex(text, r"[a-z)`][.;:][A-Z]")
         self.assertIn("almost always passes", text)
         self.assertIn("bash /abs/path.sh", text)
         self.assertNotIn("$CLAUDE_JOB_DIR", text)
