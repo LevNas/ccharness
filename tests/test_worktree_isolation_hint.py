@@ -233,6 +233,19 @@ class FromTheCommand(unittest.TestCase):
         _, text = failure(TOO_COMPLEX, command=GIT_CHAIN)
         self.assertIn("one per call", text)
         self.assertNotIn("Nothing in this command's text runs git", text)
+        # Measured: plain chains pass 99% of the time, with or without git; the rewrite names the usual causes
+        # instead of calling every chain refused, and offers a shell script file too.
+        self.assertNotIn("is refused whether or not", text)
+        self.assertIn("Loops, variables", text)
+        self.assertIn("bash /abs/x.sh", text)
+
+    def test_refusal_hints_agree_with_the_entry_hint_on_chains(self):
+        _, text = failure(TOO_COMPLEX, command=PLAIN_CHAIN_NO_GIT)
+        self.assertIn("a chain of them usually passes", text)
+        self.assertNotIn("Make it one plain command", text)
+        self.assertIn("bash /abs/x.sh", text)
+        _, text = failure(HEREDOC, command=HEREDOC_NO_GIT)
+        self.assertIn("bash /abs/path/to/x.sh", text)
 
     def test_arguments_with_equals_are_not_variables(self):
         _, text = failure(TOO_COMPLEX, command="gh api -X PATCH repos/o/r -f title=x | head -1")
@@ -257,6 +270,34 @@ class Quiet(unittest.TestCase):
         self.assertIsNone(run("{not json"))
         self.assertIsNone(run("[1, 2]"))
         self.assertIsNone(run({"hook_event_name": "PostToolUseFailure", "tool_name": "Bash", "error": 42}))
+
+
+class TextJoins(unittest.TestCase):
+    def test_every_joined_text_piece_ends_with_a_space(self):
+        # The hint texts are adjacent string literals; a piece that does not end with a space runs two words
+        # or sentences together ("passes.Also"). Raw strings (regexes) and docstrings are not hint text.
+        import io
+        import tokenize
+        with open(HOOK, encoding="utf-8") as f:
+            toks = [t for t in tokenize.generate_tokens(io.StringIO(f.read()).readline)
+                    if t.type not in (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT)]
+        joins = [(a, b) for a, b in zip(toks, toks[1:])
+                 if a.type == tokenize.STRING and b.type == tokenize.STRING and not a.string.startswith(("r", '"""'))]
+        self.assertGreater(len(joins), 10, "the texts are still built from joined pieces")
+        for a, _ in joins:
+            self.assertTrue(a.string[:-1].endswith(" "), f"line {a.start[0]}: {a.string[-30:]}")
+
+    def test_no_text_runs_two_sentences_together(self):
+        # A lost space can also sit inside one piece after rewrapping ("passes.Also"); check every hint text.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("worktree_isolation_hint", HOOK)
+        hook = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hook)
+        texts = [hook.ON_ENTER, hook.SCRIPT_FILE, hook.LITERAL, hook.EDIT_TOOL, hook.LEAVE, hook.TEXT_FILE,
+                 hook.SPLIT, hook.NO_GIT.format(where="")]
+        for text in texts:
+            self.assertNotRegex(text, r"[a-z)`][.;:?!][A-Z]")
+            self.assertNotIn("  ", text)
 
 
 if __name__ == "__main__":

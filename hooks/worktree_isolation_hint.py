@@ -4,11 +4,15 @@
 After EnterWorktree, Claude Code checks each Bash command's literal text and refuses a command it cannot show
 stays inside the worktree. The check is not limited to commands that run git: in real sessions about half of
 the refused commands ran no git at all. Its refusals speak of values that could become a command name or an
-option, and of text that names git (`git` inside a `github.com` path counts). Over 4,424 Bash commands run inside
-worktrees, it refused about half of those with a loop, 30% of those with a variable or `$(...)`, 23% with a
-heredoc and 17% with `python3 -c`, but 0.6% of chains of plain commands and 0.1% of single plain commands.
-The refusal is about what the text proves, not what it does. Sessions kept hitting it two or three times in a
-row with variations of the same form.
+option, and of text that names git (`git` inside a `github.com` path counts). The refusal is about what the
+text proves, not what it does. Sessions kept hitting it two or three times in a row with variations of the
+same form.
+
+Measured on 2026-10-06 over one user's transcripts, counting the 4,319 Bash commands run after EnterWorktree
+(the check changes between Claude Code releases, so these are a guide, not a rule): it refused 55% of the
+commands with a loop, 32% of those with a variable or `$(...)`, 21% with a heredoc, 15% with `python3 -c`,
+but 0.6% of chains of plain commands (0.7% when they name git) and 0.1% of single plain commands. A script
+file run by absolute path was never refused (`python3 /abs/x.py` 209 times, `bash /abs/x.sh` 34 times).
 
 This hook does not predict the refusal (that check is Claude Code's own and changes with it; a guess here
 would either block good commands or miss). It only adds context:
@@ -34,12 +38,12 @@ ON_ENTER = (
     "refuses a command it cannot show stays inside the worktree, whether or not it runs git. Its refusals "
     "speak of values that could become a command name or an option, and of text that names git, including "
     "`git` inside a `github.com` path. In real sessions it refused about half of the commands with a loop, "
-    "nearly a third of those with a variable or `$(...)`, about a fifth of those with a heredoc and some with "
+    "about a third of those with a variable or `$(...)`, about a fifth of those with a heredoc and some with "
     "`python3 -c`; also computed `-C` / `cd` targets, `git -C` to the main checkout, and inline text that "
     "mentions git passed to `gh` or `tmux`. A single plain command, or a chain of plain commands with "
-    "literal paths, almost always passes. Also passes: file edits with Edit/Write instead of sed; "
-    "steps that need loops or variables "
-    "written with the Write tool to a script file and run as `python3 /abs/path.py` or `bash /abs/path.sh`; "
+    "literal paths, almost always passes, with or without git. Also passes: file edits with Edit/Write "
+    "instead of sed; steps that need loops or variables written with the Write tool to a script file and run "
+    "as `python3 /abs/path.py` or `bash /abs/path.sh`; "
     "`gh ... --body-file <file>`. For the main checkout or another repository, leave first (ExitWorktree, "
     "action keep)."
 )
@@ -63,8 +67,9 @@ TEXT_FILE = (
     "(or `-F <file>`) for gh; for tmux, put the call in a script file and run that."
 )
 SPLIT = (
-    "Split it into plain commands with literal paths, one per call, whether or not it runs git. Loops, "
-    "variables, `$(...)` and scripts fed inline are what usually get a command refused; put steps that need "
+    "Rewrite it as plain commands with literal paths, whether or not it runs git; after a refusal, one per "
+    "call is the safest. Loops, variables, `$(...)` and scripts fed inline are what usually get a command "
+    "refused; put steps that need "
     "them in a script file written with the Write tool and run as `python3 /abs/x.py` or `bash /abs/x.sh`. "
     "For diff or log output, write it to a file (`git diff --output=<file>`) and read the file in the next "
     "call. If the command touches another repository, even read-only, leave the worktree first (ExitWorktree, "
@@ -72,8 +77,9 @@ SPLIT = (
 )
 NO_GIT = (
     "Nothing in this command's text runs git, but the check refuses any command it cannot verify, and it "
-    "counts `git` inside another word{where} or inside quoted text. Make it one plain command, or write the "
-    "steps to a script file with the Write tool and run `python3 /abs/x.py` or `bash /abs/x.sh`."
+    "counts `git` inside another word{where} or inside quoted text. Use plain commands with literal values "
+    "(a chain of them usually passes), or write the steps to a script file with the Write tool and run "
+    "`python3 /abs/x.py` or `bash /abs/x.sh`."
 )
 
 # (words from the refusal, rewrite), checked against refusals worded by Claude Code in real sessions.
