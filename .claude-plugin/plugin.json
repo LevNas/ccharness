@@ -1,7 +1,7 @@
 {
   "name": "ccharness",
   "description": "Harness for Claude Code: how work is distributed inside one session (a leaf agent catalog with the model and effort pinned per type, a tier guard, an agent ledger, parallel worktree fan-out, ship and worktree cleanup), plus scaffolded always-on rules, standard command blocking as official permissions.deny rules with a small hard-deny floor hook, and behaviour skills that each repository owns.",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "author": {
     "name": "LevNas"
   },
