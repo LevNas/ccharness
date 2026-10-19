@@ -24,7 +24,12 @@ A session-wrap's own branch or PR is never wrapped again, whatever its review re
 1. **Progress**: update the state of plans and tasks in progress (`.claude/tasks/` or the project's progress files).
 2. **Issues**: comment on, label or close the related issues. Skip if there is none; propose opening one if it would help.
 3. **Knowledge**: record design decisions, pitfalls, resolved problems and mistakes the user pointed out (with ccmemo installed, `/record-knowledge`).
-4. **Commit**: commit the changes. Do not push unless told to. Follow the repository's language convention for commit messages.
+4. **Repeated failures** (only with the ccevolve plugin): when the same tool call fails again in a session, ccevolve's hook adds a note that starts with `[ccevolve] 同じ失敗が` ("the same failure, for the Nth time") and carries a key in backticks, such as `Bash: <error line>`.
+   - If this session got such notes, call `/promote-to-computation` and name their keys: ask for proposals for those keys only, even if its ledger report lists more. The report counts from the third time and the note comes from the second, so a key may be missing from the report. A proposal turns the failure into a check that runs by itself (a hook, lint rule, test or permission rule).
+   - Put the proposals in the wrap report and apply none of them: the user decides on each. If the user puts them off, note them in the progress file.
+   - If a note came but `/promote-to-computation` is not available, list the keys in the wrap report instead.
+   - With no such note, or without ccevolve, skip this step and say so. The notes are only in the conversation, so failures from before a compaction are not picked up here; the ledger still has them for a periodic review.
+5. **Commit**: commit the changes. Do not push unless told to. Follow the repository's language convention for commit messages.
 
 ## Skipping
 

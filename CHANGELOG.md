@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.4
+
+A failure that keeps coming back is not stopped by writing it down: a recorded pitfall can recur in the next session. ccevolve's PostToolUseFailure hook already adds a note when the same tool call fails again in a session (`[ccevolve] 同じ失敗が...`, from the second time, with the failure's key), and its `promote-to-computation` skill reports the whole ledger and proposes turning recurring judgments into checks, but nothing in the session's wrap-up led from the note to the skill.
+
+- `session-wrap` (ja/en): a new step 4, before the commit, only with ccevolve installed.
+  - How to recognise the note: its prefix and the key in backticks.
+  - If the session got notes, call `/promote-to-computation` naming their keys and ask for proposals for those keys only; its report counts from the third time, so a key may be missing from it.
+  - Proposals go in the wrap report; none is applied, the user decides, and deferred ones go to the progress file. If the skill is not available, the keys are listed instead.
+  - With no note, or without ccevolve, the step is skipped and reported as skipped, so a wrap does not list the whole ledger every time; reviewing the whole ledger stays a periodic task. The notes live only in the conversation, so failures from before a compaction are not picked up here (the ledger keeps them).
+  - ccevolve is named only as installed or not; its scripts are not called.
+- The skill description is unchanged on purpose, so the always-on listing does not grow; it still names the main steps.
+- Templates are copied into a repository once and then belong to it, so repositories scaffolded earlier keep their copy; compare it with the template to take the change.
+- Tests: both languages' `session-wrap` must name `/promote-to-computation` and the note's prefix.
+
 ## 0.9.3
 
 `arc-handoff` writes the state down before `/compact`, but did not say how. Three points are taken from the `handoff` skill of mattpocock/skills (`skills/productivity/handoff/SKILL.md`, commit `0f5e033`, MIT, rewritten rather than copied): a handoff points to what other artifacts already hold instead of restating it, removes sensitive data before writing, and names the skills the next agent should call. The last one matters more here than in `handoff`: the skill listing does not come back after compaction, so a skill the next arc needs is one that has to be named. The rest of `handoff` (user-only invocation, an argument for the next focus, writing to the OS temporary directory) is left out; `arc-handoff` still writes to the issue, task file or knowledge base.
