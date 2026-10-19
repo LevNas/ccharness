@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.5
+
+A PR body is a summary, and a summary is shorter than the record it stands on, so it tends to claim more than the record shows: a version that was not checked, a case that was not run. The Evidence section of the `pr` skill of mattpocock/skills (`skills/engineering/pr/SKILL.md`, commit `0f5e033`, MIT; it credits HumanLayer's `show-me`, also MIT) is taken in, rewritten rather than copied, with one addition: a part for what the evidence does not cover.
+
+- `ship`: a "PR body" section with a template (`## Summary`, `## Evidence`, `### Not tested`) and four rules: every claim in Summary has an Evidence line; Evidence is what was run and what was seen, with the versions and environments checked (not widened); Not tested is never empty; headings may follow the repository's language or its merge-time review's declaration. Step 4 points to it.
+- Left out of `pr`: the visual forms for Summary (call trees, diagrams, diff sketches), the screenshot tiers, and the "Merge Danger" section.
+- The skill description is unchanged, so the always-on listing does not grow.
+- README row.
+- Tests: the ship skill keeps the three headings and the two rules.
+
 ## 0.9.4
 
 A failure that keeps coming back is not stopped by writing it down: a recorded pitfall can recur in the next session. ccevolve's PostToolUseFailure hook already adds a note when the same tool call fails again in a session (`[ccevolve] 同じ失敗が...`, from the second time, with the failure's key), and its `promote-to-computation` skill reports the whole ledger and proposes turning recurring judgments into checks, but nothing in the session's wrap-up led from the note to the skill.

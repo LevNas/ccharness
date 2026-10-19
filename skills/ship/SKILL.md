@@ -26,8 +26,31 @@ commit → push → plain `gh pr create --body-file` → check.
 
    After a scan hit, never run a plain `git commit` to get past it. Change the content so the hit goes away; for a suspected false positive, ask the user.
 3. Push: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ship.py" push`. It runs `git push -u origin <branch>`, refuses on the default branch, and never uses `--force` or `--no-verify`, so a pre-push hook (if installed) keeps running.
-4. Create the PR yourself, as a plain command, with the body in a file: `gh pr create --draft --title "..." --body-file /abs/body.md`. The script does not do this on purpose: a `gh pr create` inside a script would hide its title and body from PreToolUse guards that check what gh posts.
+4. Create the PR yourself, as a plain command, with the body in a file: `gh pr create --draft --title "..." --body-file /abs/body.md`. The script does not do this on purpose: a `gh pr create` inside a script would hide its title and body from PreToolUse guards that check what gh posts. Write the body in the shape under "PR body" below.
 5. Check: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ship.py" check [--pr N] [--expect-files path/a path/b] [--wait SECONDS]`. Read-only. It polls while `mergeable` is UNKNOWN or the PR's head is not yet the local HEAD (default 30 seconds, `--wait` must be finite; each `gh` call has a timeout) and prints one line: `READY: ...` or `NOT READY: ...` with the reasons.
+
+## PR body
+
+A summary is shorter than the record it stands on, so it tends to claim more than the record shows. The body therefore keeps what was shown apart from what was not:
+
+```markdown
+## Summary
+
+<what the PR changes and why, in the smallest view that makes it clear>
+
+## Evidence
+
+- `<command or action>` → <the result you observed>
+
+### Not tested
+
+- <what this PR does not show working, or why nothing is left out>
+```
+
+- **Every claim in Summary has an Evidence line.** A claim with no line is left out or moved to Not tested.
+- **Evidence is what you ran or did and what you saw**: the command, the test, the result line. A before and after (the test that failed now passes) fits when the change fixes something. Write the versions and environments you checked; do not widen them ("0.6.0", not "0.6.0 and later").
+- **Not tested is never empty.** Name the cases, versions or environments the evidence does not cover. If nothing is left out, say why.
+- Headings may follow the repository's language or its merge-time review's declaration (for example a review gate that requires a section named "Evidence"), as long as the three parts stay.
 
 ## Exit codes
 

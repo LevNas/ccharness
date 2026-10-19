@@ -342,5 +342,17 @@ class ShipTest(unittest.TestCase):
         self.assertEqual(self.check(env).returncode, 1)
 
 
+class SkillBodyTemplateTest(unittest.TestCase):
+    """The ship skill gives the PR body template that a merge-time review can check by heading."""
+
+    def test_template_keeps_evidence_and_not_tested(self):
+        with open(os.path.join(ROOT, "skills", "ship", "SKILL.md"), encoding="utf-8") as f:
+            text = f.read()
+        for line in ("## Summary", "## Evidence", "### Not tested"):
+            self.assertIn("\n" + line + "\n", text, line)
+        self.assertIn("Every claim in Summary has an Evidence line", text)
+        self.assertIn("Not tested is never empty", text)
+
+
 if __name__ == "__main__":
     unittest.main()
