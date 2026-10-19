@@ -5,8 +5,9 @@
 `arc-handoff` writes the state down before `/compact`, but did not say how. Three points are taken from the `handoff` skill of mattpocock/skills (`skills/productivity/handoff/SKILL.md`, commit `0f5e033`, MIT, rewritten rather than copied): a handoff points to what other artifacts already hold instead of restating it, removes sensitive data before writing, and names the skills the next agent should call. The last one matters more here than in `handoff`: the skill listing does not come back after compaction, so a skill the next arc needs is one that has to be named. The rest of `handoff` (user-only invocation, an argument for the next focus, writing to the OS temporary directory) is left out; `arc-handoff` still writes to the issue, task file or knowledge base.
 
 - `arc-handoff` (ja/en):
-  - step 2 adds "point, don't copy" (reference a spec, issue, PR, commit or diff by path or URL) and "redact before writing" (no secrets, credentials or personal data, nor anything the repository's secrets policy names);
-  - step 4 adds naming the skills the next arc should call.
+  - step 2 opens with two rules for everything it writes, commit messages included: "point, don't copy" (reference a spec, issue, PR, commit or diff by path or URL) and "redact before writing" (no secrets, credentials or personal data, nor anything the repository's secrets policy names, if it has one);
+  - the progress note in step 2 names the skills the next arc should call, or says "none", so the names are in a file and survive compaction;
+  - step 4 shows those skills with the entry point. In the ja template, the step 2 bullets now all end in the same polite form.
 - Templates are copied into a repository once and then belong to it, so repositories scaffolded earlier keep their copy; compare it with the template to take the change.
 - Tests: both languages' `arc-handoff` must carry the three points (checked by phrase per language, so editing one language alone fails).
 

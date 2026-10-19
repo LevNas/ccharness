@@ -12,16 +12,17 @@ Run this at the boundary between two arcs (units of work) when one session is us
 ## Steps (in order)
 
 1. **Confirm the boundary**: state in one line whether the current arc met its done criteria (tests, build, review) or is being paused without them.
-2. **Write the state down**:
-   - Progress: in the task file (`.claude/tasks/` or similar) or an issue comment — what is done, what remains, the next step.
+2. **Write the state down**. Two rules hold for everything written in this step, commit messages included:
+   - Point, don't copy: what a spec, issue, PR, commit or diff already holds is referenced by path or URL, not restated.
+   - Redact before writing: no secrets, credentials or personal data, nor anything the repository's secrets policy names (if it has one; look in CLAUDE.md and `.claude/rules/`). Use a placeholder such as `<token>`.
+
+   Then write:
+   - Progress: in the task file (`.claude/tasks/` or similar) or an issue comment — what is done, what remains, the next step, and the skills the next arc should call. Name them, such as `/session-wrap`, or write "none". The skill listing does not come back after compaction, so the next arc does not see a skill that no file names.
    - Decisions: what the user decided in conversation that is not in a file yet. Decision records go to the knowledge base (`/record-knowledge` when ccmemo is installed).
    - Changes: commit uncommitted work. Push only when asked.
-   - Point, don't copy: what a spec, issue, PR, commit or diff already holds is referenced by path or URL, not restated.
-   - Redact before writing: no secrets, credentials or personal data, nor anything the repository's secrets policy names; use a placeholder.
 3. **Show the `/compact` line**: one or two sentences on the next arc's focus.
    Example: `/compact Next: implement <next issue>. <current issue> is merged in <PR>; the remaining items are in the issue.`
-4. **Show the entry point of the next arc**: the files or issue to read first, and the first step.
-   - Name the skills the next arc should call. The skill listing does not come back after compaction, so a skill named here is one the next arc can still use.
+4. **Show the entry point of the next arc**: the files or issue to read first, the first step, and the skills named in step 2.
 
 ## Choosing
 
