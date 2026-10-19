@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.4
+
+A failure that keeps coming back is not stopped by writing it down: a recorded pitfall can recur in the next session. ccevolve's PostToolUseFailure hook already says when the same failure happens again in a session, and its `promote-to-computation` skill proposes turning a recurring judgment into a check, but nothing in the session's wrap-up led from one to the other.
+
+- `session-wrap` (ja/en): a new step 4, before the commit. When ccevolve (if installed) said in this session that a failure repeated, only those failures go to `/promote-to-computation` for proposals; the user decides on each, and nothing is applied in the wrap. Without such a notice the skill is not called, so a wrap does not list the whole ledger every time; reviewing the whole ledger stays a periodic task. The notices live only in the conversation, so failures from before a compaction are not picked up. ccevolve is named only as "if installed"; its scripts are not called.
+- The skill description is unchanged, so the always-on listing does not grow.
+- Templates are copied into a repository once and then belong to it, so repositories scaffolded earlier keep their copy; compare it with the template to take the change.
+- Tests: both languages' `session-wrap` must name `/promote-to-computation`.
+
 ## 0.9.3
 
 `arc-handoff` writes the state down before `/compact`, but did not say how. Three points are taken from the `handoff` skill of mattpocock/skills (`skills/productivity/handoff/SKILL.md`, commit `0f5e033`, MIT, rewritten rather than copied): a handoff points to what other artifacts already hold instead of restating it, removes sensitive data before writing, and names the skills the next agent should call. The last one matters more here than in `handoff`: the skill listing does not come back after compaction, so a skill the next arc needs is one that has to be named. The rest of `handoff` (user-only invocation, an argument for the next focus, writing to the OS temporary directory) is left out; `arc-handoff` still writes to the issue, task file or knowledge base.

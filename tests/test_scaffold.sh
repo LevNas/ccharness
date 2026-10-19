@@ -91,6 +91,10 @@ for pair in "en|Point, don't copy" "en|Redact before writing" "en|the skills the
   l="${pair%%|*}"; phrase="${pair#*|}"
   grep -qF -- "$phrase" "$ROOT/templates/skills/$l/arc-handoff/SKILL.md" || fail "$l arc-handoff lacks: $phrase"
 done
+# session-wrap hands this session's repeated failures to promote-to-computation, in both languages
+for l in ja en; do
+  grep -qF -- "/promote-to-computation" "$ROOT/templates/skills/$l/session-wrap/SKILL.md" || fail "$l session-wrap lacks the repeated-failure step"
+done
 
 # 9. CLAUDE.md is never written
 [ ! -e "$TMP/CLAUDE.md" ] || fail "CLAUDE.md must not be written"

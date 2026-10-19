@@ -24,7 +24,8 @@ A session-wrap's own branch or PR is never wrapped again, whatever its review re
 1. **Progress**: update the state of plans and tasks in progress (`.claude/tasks/` or the project's progress files).
 2. **Issues**: comment on, label or close the related issues. Skip if there is none; propose opening one if it would help.
 3. **Knowledge**: record design decisions, pitfalls, resolved problems and mistakes the user pointed out (with ccmemo installed, `/record-knowledge`).
-4. **Commit**: commit the changes. Do not push unless told to. Follow the repository's language convention for commit messages.
+4. **Repeated failures**: if ccevolve (when installed) said in this session that the same failure happened again ("同じ失敗が N 回目"), pass only those failures to `/promote-to-computation` for proposals that turn them into computation (a hook, lint rule, test or permission rule). Whether to adopt a proposal is the user's call, so apply none here. Without such a notice, do not call it. The notices are only in the conversation, so failures from before a compaction are not picked up.
+5. **Commit**: commit the changes. Do not push unless told to. Follow the repository's language convention for commit messages.
 
 ## Skipping
 
