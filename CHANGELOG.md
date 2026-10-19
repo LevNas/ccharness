@@ -4,11 +4,16 @@
 
 A PR body is a summary, and a summary is shorter than the record it stands on, so it tends to claim more than the record shows: a version that was not checked, a case that was not run. The Evidence section of the `pr` skill of mattpocock/skills (`skills/engineering/pr/SKILL.md`, commit `0f5e033`, MIT; it credits HumanLayer's `show-me`, also MIT) is taken in, rewritten rather than copied, with one addition: a part for what the evidence does not cover.
 
-- `ship`: a "PR body" section with a template (`## Summary`, `## Evidence`, `### Not tested`) and four rules: every claim in Summary has an Evidence line; Evidence is what was run and what was seen, with the versions and environments checked (not widened); Not tested is never empty; headings may follow the repository's language or its merge-time review's declaration. Step 4 points to it.
+- `ship`: a "PR body" section after the numbered steps, which step 4 points to. A template (`## Summary`, `## Evidence`, `### Not tested`) and these rules:
+  - every claim in Summary has an Evidence line (the "why" cites its source instead);
+  - Evidence is what was run or done in this work and the result as printed; a change with nothing to run gives the check that was done, or moves the claim to Not tested; `check`'s `READY` is not evidence;
+  - do not widen what was seen: the versions and environments checked, and "all" only for what was counted;
+  - Not tested is never empty, and "none" is not an entry;
+  - headings may follow the repository's language or the names its review or PR template requires.
 - Left out of `pr`: the visual forms for Summary (call trees, diagrams, diff sketches), the screenshot tiers, and the "Merge Danger" section.
 - The skill description is unchanged, so the always-on listing does not grow.
 - README row.
-- Tests: the ship skill keeps the three headings and the two rules.
+- Tests: the ship skill keeps the three headings and four rule phrases (the claim rule, not widening, Not tested never empty, "none" is not an entry).
 
 ## 0.9.4
 

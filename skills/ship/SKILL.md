@@ -40,17 +40,19 @@ A summary is shorter than the record it stands on, so it tends to claim more tha
 
 ## Evidence
 
-- `<command or action>` → <the result you observed>
+- `<command or action>` → <the result as printed: counts, exit code, version> (<environment, if it matters>)
 
 ### Not tested
 
-- <what this PR does not show working, or why nothing is left out>
+- <a case, version, environment or effect the evidence above does not reach>
 ```
 
-- **Every claim in Summary has an Evidence line.** A claim with no line is left out or moved to Not tested.
-- **Evidence is what you ran or did and what you saw**: the command, the test, the result line. A before and after (the test that failed now passes) fits when the change fixes something. Write the versions and environments you checked; do not widen them ("0.6.0", not "0.6.0 and later").
-- **Not tested is never empty.** Name the cases, versions or environments the evidence does not cover. If nothing is left out, say why.
-- Headings may follow the repository's language or its merge-time review's declaration (for example a review gate that requires a section named "Evidence"), as long as the three parts stay.
+- **Every claim in Summary has an Evidence line.** A claim with no line is left out or moved to Not tested. When it is not obvious which claim a line backs, say so in the line. The "why" of the change cites its source (an issue, an incident) rather than an Evidence line.
+- **Evidence is what you ran or did in this work and what you saw**: the command, the test, the result line as printed. A before and after (the test that failed now passes) fits when the change fixes something. For a change with nothing to run (docs, config), the evidence is the check you did and its result (a link check, a rendered preview, `git diff --stat`); if you checked nothing, the claim goes under Not tested. The body is written before step 5, so `check`'s `READY` is not evidence.
+- **Do not widen what you saw.** Write the versions and environments you checked ("0.6.0", not "0.6.0 and later"), and say "all", "every" or "any" only for what you counted.
+- **Not tested is never empty.** Name at least one case, version, environment or effect the evidence does not reach, however small the change; "none" is not an entry.
+- Headings may follow the repository's language, or the names its review or PR template requires, as long as the three parts stay.
+- The shape is adapted from the Evidence section of the `pr` skill of mattpocock/skills (MIT).
 
 ## Exit codes
 

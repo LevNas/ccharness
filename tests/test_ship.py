@@ -350,8 +350,9 @@ class SkillBodyTemplateTest(unittest.TestCase):
             text = f.read()
         for line in ("## Summary", "## Evidence", "### Not tested"):
             self.assertIn("\n" + line + "\n", text, line)
-        self.assertIn("Every claim in Summary has an Evidence line", text)
-        self.assertIn("Not tested is never empty", text)
+        for rule in ("Every claim in Summary has an Evidence line", "Do not widen what you saw",
+                     "Not tested is never empty", '"none" is not an entry'):
+            self.assertIn(rule, text, rule)
 
 
 if __name__ == "__main__":
