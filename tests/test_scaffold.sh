@@ -94,6 +94,7 @@ done
 # session-wrap hands this session's repeated failures to promote-to-computation, in both languages
 for l in ja en; do
   grep -qF -- "/promote-to-computation" "$ROOT/templates/skills/$l/session-wrap/SKILL.md" || fail "$l session-wrap lacks the repeated-failure step"
+  grep -qF -- "[ccevolve] 同じ失敗が" "$ROOT/templates/skills/$l/session-wrap/SKILL.md" || fail "$l session-wrap does not say how to recognise the repeat note"
 done
 
 # 9. CLAUDE.md is never written
