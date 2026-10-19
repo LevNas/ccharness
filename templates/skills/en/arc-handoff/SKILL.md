@@ -16,9 +16,12 @@ Run this at the boundary between two arcs (units of work) when one session is us
    - Progress: in the task file (`.claude/tasks/` or similar) or an issue comment — what is done, what remains, the next step.
    - Decisions: what the user decided in conversation that is not in a file yet. Decision records go to the knowledge base (`/record-knowledge` when ccmemo is installed).
    - Changes: commit uncommitted work. Push only when asked.
+   - Point, don't copy: what a spec, issue, PR, commit or diff already holds is referenced by path or URL, not restated.
+   - Redact before writing: no secrets, credentials or personal data, nor anything the repository's secrets policy names; use a placeholder.
 3. **Show the `/compact` line**: one or two sentences on the next arc's focus.
    Example: `/compact Next: implement <next issue>. <current issue> is merged in <PR>; the remaining items are in the issue.`
 4. **Show the entry point of the next arc**: the files or issue to read first, and the first step.
+   - Name the skills the next arc should call. The skill listing does not come back after compaction, so a skill named here is one the next arc can still use.
 
 ## Choosing
 

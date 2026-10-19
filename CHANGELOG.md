@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.3
+
+`arc-handoff` writes the state down before `/compact`, but did not say how. Three points are taken from the `handoff` skill of mattpocock/skills (`skills/productivity/handoff/SKILL.md`, commit `0f5e033`, MIT, rewritten rather than copied): a handoff points to what other artifacts already hold instead of restating it, removes sensitive data before writing, and names the skills the next agent should call. The last one matters more here than in `handoff`: the skill listing does not come back after compaction, so a skill the next arc needs is one that has to be named. The rest of `handoff` (user-only invocation, an argument for the next focus, writing to the OS temporary directory) is left out; `arc-handoff` still writes to the issue, task file or knowledge base.
+
+- `arc-handoff` (ja/en):
+  - step 2 adds "point, don't copy" (reference a spec, issue, PR, commit or diff by path or URL) and "redact before writing" (no secrets, credentials or personal data, nor anything the repository's secrets policy names);
+  - step 4 adds naming the skills the next arc should call.
+- Templates are copied into a repository once and then belong to it, so repositories scaffolded earlier keep their copy; compare it with the template to take the change.
+- Tests: both languages' `arc-handoff` must carry the three points (checked by phrase per language, so editing one language alone fails).
+
 ## 0.9.2
 
 0.9.1's entry hint said that chains (`&&`, `;`, `|`), heredocs, `python3 -c`, variables and loops are refused. A live check after the release showed that a chain with a heredoc and a variable assignment with a `github.com` path both passed. 0.9.1 was built from refused commands only; this release compares them with the commands that passed. Over the 4,319 Bash commands run after EnterWorktree in one user's transcripts (measured 2026-10-06), the share refused was 55% with a loop, 32% with a variable or `$(...)`, 21% with a heredoc, 15% with `python3 -c` or `python3 -`, 0.6% for chains of plain commands with literal values (0.7% for those that name git), and 0.1% for single plain commands. A script file run by absolute path was never refused (`python3 /abs/x.py` 209 times, `bash /abs/x.sh` 34 times). The check is Claude Code's own and changes between releases, so the rates are a guide, not a rule.
