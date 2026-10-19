@@ -85,6 +85,12 @@ for l in ja en; do
   [ -e "$ROOT/templates/skills/$l/arc-handoff/SKILL.md" ] || fail "$l arc-handoff skill missing"
   grep -q '^## Compact Instructions$' "$ROOT/templates/CLAUDE.md.snippet.$l.md" || fail "$l snippet lacks Compact Instructions"
 done
+# arc-handoff carries the three handoff elements in both languages: point instead of copying, redact, name the next skills
+for pair in "en|Point, don't copy" "en|Redact before writing" "en|the skills the next arc should call" \
+            "ja|場所を指す" "ja|書く前に伏せる" "ja|次のアークで使うスキル"; do
+  l="${pair%%|*}"; phrase="${pair#*|}"
+  grep -qF -- "$phrase" "$ROOT/templates/skills/$l/arc-handoff/SKILL.md" || fail "$l arc-handoff lacks: $phrase"
+done
 
 # 9. CLAUDE.md is never written
 [ ! -e "$TMP/CLAUDE.md" ] || fail "CLAUDE.md must not be written"
