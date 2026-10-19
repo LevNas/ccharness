@@ -26,8 +26,33 @@ commit → push → plain `gh pr create --body-file` → check.
 
    After a scan hit, never run a plain `git commit` to get past it. Change the content so the hit goes away; for a suspected false positive, ask the user.
 3. Push: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ship.py" push`. It runs `git push -u origin <branch>`, refuses on the default branch, and never uses `--force` or `--no-verify`, so a pre-push hook (if installed) keeps running.
-4. Create the PR yourself, as a plain command, with the body in a file: `gh pr create --draft --title "..." --body-file /abs/body.md`. The script does not do this on purpose: a `gh pr create` inside a script would hide its title and body from PreToolUse guards that check what gh posts.
+4. Create the PR yourself, as a plain command, with the body in a file: `gh pr create --draft --title "..." --body-file /abs/body.md`. The script does not do this on purpose: a `gh pr create` inside a script would hide its title and body from PreToolUse guards that check what gh posts. Write the body in the shape under "PR body" below.
 5. Check: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ship.py" check [--pr N] [--expect-files path/a path/b] [--wait SECONDS]`. Read-only. It polls while `mergeable` is UNKNOWN or the PR's head is not yet the local HEAD (default 30 seconds, `--wait` must be finite; each `gh` call has a timeout) and prints one line: `READY: ...` or `NOT READY: ...` with the reasons.
+
+## PR body
+
+A summary is shorter than the record it stands on, so it tends to claim more than the record shows. The body therefore keeps what was shown apart from what was not:
+
+```markdown
+## Summary
+
+<what the PR changes and why, in the smallest view that makes it clear>
+
+## Evidence
+
+- `<command or action>` → <the result as printed: counts, exit code, version> (<environment, if it matters>)
+
+### Not tested
+
+- <a case, version, environment or effect the evidence above does not reach>
+```
+
+- **Every claim in Summary has an Evidence line.** A claim with no line is left out or moved to Not tested. When it is not obvious which claim a line backs, say so in the line. The "why" of the change cites its source (an issue, an incident) rather than an Evidence line.
+- **Evidence is what you ran or did in this work and what you saw**: the command, the test, the result line as printed. A before and after (the test that failed now passes) fits when the change fixes something. For a change with nothing to run (docs, config), the evidence is the check you did and its result (a link check, a rendered preview, `git diff --stat`); if you checked nothing, the claim goes under Not tested. The body is written before step 5, so `check`'s `READY` is not evidence.
+- **Do not widen what you saw.** Write the versions and environments you checked ("0.6.0", not "0.6.0 and later"), and say "all", "every" or "any" only for what you counted.
+- **Not tested is never empty.** Name at least one case, version, environment or effect the evidence does not reach, however small the change; "none" is not an entry.
+- Headings may follow the repository's language, or the names its review or PR template requires, as long as the three parts stay.
+- The shape is adapted from the Evidence section of the `pr` skill of mattpocock/skills (MIT).
 
 ## Exit codes
 
