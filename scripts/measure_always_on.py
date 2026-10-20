@@ -7,7 +7,9 @@ Counts what every session loads before any work starts:
   user     ~/.claude/CLAUDE.md, ~/.claude/rules/**/*.md,
            descriptions of ~/.claude/skills/*/SKILL.md
   plugins  descriptions of skills shipped by enabled plugins
-           (~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/*/SKILL.md)
+           (~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/*/SKILL.md),
+           from the installed version (installPath in ~/.claude/plugins/installed_plugins.json),
+           else from the most recently modified version folder in the cache
 
 Skill bodies are not counted: they load only when the skill is used. Each
 description is capped at the official `skillListingMaxDescChars` setting
@@ -145,10 +147,27 @@ def _enabled_plugins(settings: list[dict]) -> list[str]:
 def _plugin_skill_files(spec: str, home: str) -> list[str]:
     if "@" not in spec:
         return []
+    path = _plugin_install_path(spec, home)
+    return _skills(os.path.join(path, "skills")) if path else []
+
+
+def _plugin_install_path(spec: str, home: str) -> str | None:
+    """The version folder Claude Code loads: installed_plugins.json, else the newest cache folder.
+
+    Version names are not ordered as strings ("0.9.5" sorts after "0.11.0") and may be hashes,
+    so the fallback goes by modification time, not by name.
+    """
+    plugins_dir = os.path.join(home, ".claude", "plugins")
+    installed = _load_json(os.path.join(plugins_dir, "installed_plugins.json")).get("plugins")
+    entries = installed.get(spec) if isinstance(installed, dict) else None
+    for entry in entries if isinstance(entries, list) else []:
+        path = entry.get("installPath") if isinstance(entry, dict) else None
+        if isinstance(path, str) and os.path.isdir(path):
+            return path
     plugin, market = spec.split("@", 1)
-    base = os.path.join(home, ".claude", "plugins", "cache", market, plugin)
-    versions = sorted(d for d in glob.glob(os.path.join(base, "*")) if os.path.isdir(d))
-    return _skills(os.path.join(versions[-1], "skills")) if versions else []
+    base = os.path.join(plugins_dir, "cache", market, plugin)
+    versions = [d for d in glob.glob(os.path.join(base, "*")) if os.path.isdir(d)]
+    return max(versions, key=os.path.getmtime) if versions else None
 
 
 def measure(target: str, home: str, window: int | None = None, env: dict | None = None) -> dict:

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+### Fixed
+
+- `measure_always_on.py` (the `harness-budget` measurement) counted the wrong version of a plugin. It sorted the version folders in the cache as strings and took the last, so `0.9.5` won over `0.10.0` and `0.11.0`, and the plugin's skill descriptions and the skill listing estimate came from an old version. It now takes the installed version from `installPath` in `~/.claude/plugins/installed_plugins.json`, and falls back to the most recently modified version folder when that file or the entry is missing (version names may be hashes, so the fallback does not go by name).
+- Tests: `tests/test_measure.py` checks that the installed version is counted when an older version sorts after it as a string, and the fallback by modification time.
+
 ## 0.11.0
 
 Asked to write instructions for another model, a model explains what its reader already knows, and the always-loaded side grows with lines that change nothing. The `writing-for-agents` skill of mattpocock/skills (`skills/productivity/writing-for-agents/SKILL.md`, `SKILL-MECHANICS.md` and its docs, commit `5beb35b`, MIT) gives the levers for writing what an agent reads, with deletion as the default fix. It is taken in, rewritten rather than copied.
