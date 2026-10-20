@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.10.0
+
+Asking one question at a time takes as many turns as there are questions. Asking everything at once loses the questions that earlier answers would have raised. The `grilling` skill of mattpocock/skills (`skills/productivity/grilling/SKILL.md`, its docs and the `grill-me` docs, commit `5beb35b`, MIT) asks in rounds, and each round holds only the questions whose prerequisites are settled. It is taken in under a plainer name, rewritten rather than copied.
+
+- New skill `settle-decisions`:
+  - Taken in: the design tree and the frontier; one round per frontier; the `❓ **Q<n>**` / `➡️` format, worded so "yes" accepts the recommendation; facts looked up (files, read-only commands, a subagent) and decisions left to the user; no action until the user confirms a shared understanding; a throwaway prototype for questions that talking cannot settle; splitting a scope that keeps growing.
+  - Added:
+    - each round starts with the list of decisions settled so far, written to read without the questions, so an answer such as "all yes" keeps its meaning after a compaction;
+    - numbering runs through the session, and a reopened decision is asked as `Q<n> (revisits Q<m>)`, never changed silently;
+    - the `AskUserQuestion` tool only for a round of at most four choice questions;
+    - questions in the language of the conversation;
+    - after the confirmation, a pointer to record the decisions in an ADR or the knowledge base (ccmemo's `/record-knowledge` if installed). The skill writes no files.
+  - Left out:
+    - the front-door skills `grill-me` and `grill-with-docs` (a skill that names another skill does not reliably load it);
+    - the `GLOSSARY.md` and ADR writing of `grill-with-docs`;
+    - a question cap (upstream leaves it out too).
+  - Model-invoked, so other skills can call it. The always-on listing grows by its description (about 260 characters).
+- README row.
+- Tests: `tests/test_settle_decisions_skill.py` checks the name, that the model can invoke the skill, a description of at most 300 characters, the round format and the rules.
+
 ## 0.9.5
 
 A PR body is a summary, and a summary is shorter than the record it stands on, so it tends to claim more than the record shows: a version that was not checked, a case that was not run. The Evidence section of the `pr` skill of mattpocock/skills (`skills/engineering/pr/SKILL.md`, commit `0f5e033`, MIT; it credits HumanLayer's `show-me`, also MIT) is taken in, rewritten rather than copied, with one addition: a part for what the evidence does not cover.
