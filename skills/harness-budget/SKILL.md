@@ -21,6 +21,10 @@ Always-on content is a budget, not a folder. This skill produces the number so t
 2. Compare with the previous figure if one is recorded (periodic review notes, an issue, the knowledge base). Report the delta per category.
 3. If the always-on side grew, re-apply the question "would starting work without this rule cause an accident?" to each new or grown file. Anything that fails moves to `.claude/skills/` or to a `paths:`-scoped rule. Propose the move; do not reshuffle on your own.
 4. Look for instructions nobody uses. Official signals: `/context` shows what is taking space in the current session, and `/usage` attributes recent usage to skills, subagents, plugins and MCP servers. An instruction that never changes behaviour is a candidate for deletion; propose it with the evidence.
+   - A sentence is a no-op when the model already behaves that way without it, so the answer depends on the model, not on the reader.
+   - Settle it by running the document with and without the sentence, not by argument.
+   - Delete a sentence that fails whole, rather than trimming words from it.
+   - For how to write and prune the text itself, see the `writing-for-agents` skill.
 5. For outdated or contradicting content, suggest the official audit `/doctor prompt-audit` (Claude Code v2.1.283 or later). It covers CLAUDE.md, rules, skills, commands and subagents, reports proposed edits, and changes nothing until asked.
 
 ## What the number covers
