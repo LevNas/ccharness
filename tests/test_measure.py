@@ -65,6 +65,46 @@ def test_window_from_model():
         check("other model: budget 2,000 chars", s["budget_chars"] == 2_000, s)
 
 
+def plugin_versions(home, versions):
+    """Create cache/mkt/plug/<version>/skills/: version v gets as many skills as its index + 1."""
+    paths = {}
+    for i, v in enumerate(versions):
+        path = os.path.join(home, ".claude", "plugins", "cache", "mkt", "plug", v)
+        for j in range(i + 1):
+            skill(os.path.join(path, "skills"), f"{v}-s{j}", "d")
+        paths[v] = path
+    settings(os.path.join(home, ".claude", "settings.json"), {"enabledPlugins": {"plug@mkt": True}})
+    return paths
+
+
+def plugin_skill_count(home, target):
+    rows = m.measure(target, home, env={})["rows"]
+    return [r["files"] for r in rows if r["item"] == "plug@mkt"]
+
+
+def test_plugin_version_from_installed_plugins():
+    # "0.9.5" sorts after "0.11.0" as a string; the installed version must win.
+    with tempfile.TemporaryDirectory() as base:
+        home, target = fixture(base, n=0)
+        paths = plugin_versions(home, ["0.11.0", "0.9.5"])
+        settings(os.path.join(home, ".claude", "plugins", "installed_plugins.json"),
+                 {"version": 2, "plugins": {"plug@mkt": [{"scope": "user", "installPath": paths["0.11.0"],
+                                                          "version": "0.11.0"}]}})
+        got = plugin_skill_count(home, target)
+        check("installed version counted (0.11.0: 1 skill, not 0.9.5: 2)", got == [1], got)
+
+
+def test_plugin_version_fallback_newest_mtime():
+    # Without installed_plugins.json, the most recently written version folder is counted.
+    with tempfile.TemporaryDirectory() as base:
+        home, target = fixture(base, n=0)
+        paths = plugin_versions(home, ["0.11.0", "0.9.5"])
+        os.utime(paths["0.9.5"], (1_000_000, 1_000_000))
+        os.utime(paths["0.11.0"], (2_000_000, 2_000_000))
+        got = plugin_skill_count(home, target)
+        check("fallback: newest version folder counted", got == [1], got)
+
+
 def test_overrides():
     with tempfile.TemporaryDirectory() as base:
         home, target = fixture(base, model="opus[1m]")
