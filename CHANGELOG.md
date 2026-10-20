@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.0
+
+Asked to write instructions for another model, a model explains what its reader already knows, and the always-loaded side grows with lines that change nothing. The `writing-for-agents` skill of mattpocock/skills (`skills/productivity/writing-for-agents/SKILL.md`, `SKILL-MECHANICS.md` and its docs, commit `5beb35b`, MIT) gives the levers for writing what an agent reads, with deletion as the default fix. It is taken in, rewritten rather than copied.
+
+- New skill `writing-for-agents`:
+  - Taken in: context pointers (a description or a `CLAUDE.md` line; its wording decides reach; one trigger per branch); the two loads (context and cognitive); the information hierarchy (in-file step, in-file reference, disclosed reference), progressive disclosure tested by branching, co-location and sprawl; completion criteria (clarity against premature completion, demand and legwork); when to split; leading words, and positive targets instead of bans; pruning (single source of truth, the environment as a source of truth and a document as its cache, relevance and sediment, the no-op test).
+  - Added: what is always loaded in Claude Code (`CLAUDE.md` and its imports, rules without `paths:`, skill and agent descriptions), with `harness-budget` to measure it.
+  - `skill-mechanics.md`, disclosed behind a pointer because only the skill branch needs it: model- or user-invoked (`disable-model-invocation: true`) and splitting by invocation.
+  - Left out:
+    - router skills;
+    - the docs' questions and answers, which are written for the human;
+    - "there is no automated eval": the skill says only that a no-op is settled by running the document;
+    - the `AGENTS.md` name (read as `CLAUDE.md`).
+  - Model-invoked, so Claude opens it when it writes or trims a skill, `CLAUDE.md`, a rule or a prompt. The always-on listing grows by its description (237 characters).
+- `harness-budget`, step 4 (instructions nobody uses): three points on the no-op test (a sentence is a no-op when the model already behaves that way, so the answer depends on the model; settle it by running the document with and without the sentence; delete a failing sentence whole), and a pointer to `writing-for-agents` for writing and pruning the text itself. No script: whether a sentence is a no-op is not the same for every model.
+- README rows.
+- Tests: `tests/test_writing_for_agents_skill.py` checks the name, that the model can invoke the skill, a description of at most 300 characters, the seven sections, the key rules, the disclosed `skill-mechanics.md`, and the no-op points in `harness-budget` step 4.
+
 ## 0.10.0
 
 Asking one question at a time takes as many turns as there are questions. Asking everything at once loses the questions that earlier answers would have raised. The `grilling` skill of mattpocock/skills (`skills/productivity/grilling/SKILL.md`, its docs and the `grill-me` docs, commit `5beb35b`, MIT) asks in rounds, and each round holds only the questions whose prerequisites are settled. It is taken in under a plainer name, rewritten rather than copied.
