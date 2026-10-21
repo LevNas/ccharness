@@ -16,7 +16,7 @@ Ship correct changes with tests and minimal regressions.
 1. Start with context: read the relevant code, tests and docs.
 2. Create a short task list (3–8 items).
 3. Make small diffs; run checks early and often.
-4. Always add or update tests when behaviour changes.
+4. Always add or update tests when behaviour changes. Before writing one, read the test rules of `ccharness:diagnosing-bugs` (`tests.md`).
 5. Summarise what changed, why, and any remaining risk.
 
 ## Definition of Done

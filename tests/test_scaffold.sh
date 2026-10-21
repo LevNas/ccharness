@@ -96,6 +96,16 @@ for l in ja en; do
   grep -qF -- "/promote-to-computation" "$ROOT/templates/skills/$l/session-wrap/SKILL.md" || fail "$l session-wrap lacks the repeated-failure step"
   grep -qF -- "[ccevolve] 同じ失敗が" "$ROOT/templates/skills/$l/session-wrap/SKILL.md" || fail "$l session-wrap does not say how to recognise the repeat note"
 done
+# dev-shipper and the snippet point at diagnosing-bugs, and the snippet asks for checks seen able to fail, in both languages
+for pair in "skills/en/dev-shipper/SKILL.md|read the test rules of \`ccharness:diagnosing-bugs\`" \
+            "skills/ja/dev-shipper/SKILL.md|\`ccharness:diagnosing-bugs\` のテストの決まり" \
+            "CLAUDE.md.snippet.en.md|investigate autonomously with \`ccharness:diagnosing-bugs\`" \
+            "CLAUDE.md.snippet.ja.md|\`ccharness:diagnosing-bugs\` で自律的に調査" \
+            "CLAUDE.md.snippet.en.md|with tests or logs you have seen able to fail" \
+            "CLAUDE.md.snippet.ja.md|落ちうることを確かめたテストかログで"; do
+  f="${pair%%|*}"; phrase="${pair#*|}"
+  grep -qF -- "$phrase" "$ROOT/templates/$f" || fail "$f lacks: $phrase"
+done
 
 # 9. CLAUDE.md is never written
 [ ! -e "$TMP/CLAUDE.md" ] || fail "CLAUDE.md must not be written"
