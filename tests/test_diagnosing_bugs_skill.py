@@ -101,6 +101,16 @@ class TestRulesFileTest(unittest.TestCase):
         ):
             self.assertIn(rule, self.text, rule)
 
+    def test_acceptance_criteria(self):
+        # Criteria already true at the start grade nothing (from the to-tickets docs).
+        self.assertIn("Acceptance criteria", re.findall(r"^## (.+)$", self.text, re.M))
+        for rule in (
+            "name the observation that would show it false",
+            "false at the commit the work starts from",
+            "`docs/engineering/to-tickets.md`",
+        ):
+            self.assertIn(rule, self.text, rule)
+
 
 if __name__ == "__main__":
     unittest.main()

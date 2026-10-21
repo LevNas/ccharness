@@ -1,12 +1,20 @@
 # Writing tests
 
-The rules for writing any test: a regression test in step 5 of [diagnosing-bugs](SKILL.md), or a test for new behaviour. Rewritten from the `tdd` skill of mattpocock/skills (`skills/engineering/tdd/SKILL.md`, `tests.md`, `mocking.md`, commit `5beb35b`, MIT).
+The rules for writing any test, and the acceptance criteria it checks: a regression test in step 5 of [diagnosing-bugs](SKILL.md), or a test for new behaviour. Rewritten from the `tdd` skill of mattpocock/skills (`skills/engineering/tdd/SKILL.md`, `tests.md`, `mocking.md`, commit `5beb35b`, MIT).
 
 ## Red first
 
 - Write the test, run it, and watch it fail for the right reason (the missing behaviour, not a typo or an import error). Then write only enough code to make it pass.
 - A test you have never seen fail has checked nothing.
 - Read the count: look at the runner's count line (`Ran N tests`, `N passed`), not only the exit code. Zero tests collected exits 0 and is not a pass.
+
+## Acceptance criteria
+
+A plan's or a task's acceptance criteria are checks too. Rewritten from the docs of the `to-tickets` skill of mattpocock/skills (`docs/engineering/to-tickets.md`, commit `5beb35b`, MIT).
+
+- For each criterion, name the observation that would show it false.
+- Before the work starts, confirm the criterion is false at the commit the work starts from. A criterion already true there grades nothing.
+- Three shapes grade nothing: one already true at the starting commit; one that only work outside this task can satisfy; one that restates the request instead of naming what to observe in the result.
 
 ## Seams
 

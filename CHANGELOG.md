@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.1
+
+A plan's acceptance criteria can pass before any work is done, and then they grade nothing. This is the failure `diagnosing-bugs` already guards against for tests: trusting a check never seen failing. From the `to-tickets` skill of mattpocock/skills (its docs, `docs/engineering/to-tickets.md`, commit `5beb35b`, MIT), only that rule is taken in, rewritten rather than copied.
+
+- `diagnosing-bugs/tests.md`, new section "Acceptance criteria": for each criterion, name the observation that would show it false, and confirm it is false at the commit the work starts from; three shapes grade nothing (already true at the start, satisfiable only by work outside the task, a restatement of the request). The opening line now names acceptance criteria.
+- Left out of `to-tickets`: vertical slicing, blocking edges between tickets, prefactoring first, expand–contract for wide refactors, and publishing to a tracker's native sub-issues and blocking links. Nothing is taken from `wayfinder`, `implement` or `implement-spec`.
+- No description changes: `dev-shipper` and step 5 of the skill already point at `tests.md`, so the always-on listing does not grow.
+- README row.
+- Tests: `tests/test_diagnosing_bugs_skill.py` checks the section, its two rules and its source.
+
 ## 0.12.0
 
 Given a bug report, a model reads code and guesses; given a check, it trusts a green it never saw red. The `diagnosing-bugs` and `tdd` skills of mattpocock/skills (`skills/engineering/diagnosing-bugs/`, `skills/engineering/tdd/` with `tests.md` and `mocking.md`, their docs and two changesets, commit `5beb35b`, MIT) share one core: trust only a check you have seen fail. They are taken in as one skill, rewritten rather than copied.
