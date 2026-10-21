@@ -1,9 +1,9 @@
-<!-- ccharness template v0.3.1 (en): review, then append to CLAUDE.md with the user's approval -->
+<!-- ccharness template v0.3.2 (en): review, then append to CLAUDE.md with the user's approval -->
 
 ## Workflow Rules
 
-- On bug reports: investigate autonomously (reproduce, read logs, trace code) → report findings and the proposed fix, get agreement before changing anything → if information is missing, ask in a form other team members can follow → if the investigation stalls, stop and report. No ad-hoc fixes without a plan
-- Prove behaviour with tests or logs before calling a task complete
+- On bug reports: investigate autonomously with `ccharness:diagnosing-bugs` (reproduce, read logs, trace code) → report findings and the proposed fix, get agreement before changing anything → if information is missing, ask in a form other team members can follow → if the investigation stalls, stop and report. No ad-hoc fixes without a plan
+- Prove behaviour before calling a task complete, with tests or logs you have seen able to fail (an ok over zero items, or an exit code alone, proves nothing)
 - Start in plan mode for tasks with three or more steps
 - If a fix feels hacky, re-investigate the root cause
 - If stuck, stop and re-plan. Never brute-force through

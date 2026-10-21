@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.0
+
+Given a bug report, a model reads code and guesses; given a check, it trusts a green it never saw red. The `diagnosing-bugs` and `tdd` skills of mattpocock/skills (`skills/engineering/diagnosing-bugs/`, `skills/engineering/tdd/` with `tests.md` and `mocking.md`, their docs and two changesets, commit `5beb35b`, MIT) share one core: trust only a check you have seen fail. They are taken in as one skill, rewritten rather than copied.
+
+- New skill `diagnosing-bugs`:
+  - Taken in: the gate (one command that shows the user's symptom, run once and shown before any hypothesis; repeatable, fast, unattended); ways to build it; stop and ask when none can be built; check that the failure is the user's, not a nearby one; 3-5 ranked falsifiable hypotheses shown to the user before testing; one change at a time, debugger before logs, a unique debug-log prefix removed by one grep, baseline then bisect for performance; a regression test only at a correct seam, and a missing seam written down as a finding; a forced red proven with a diff against an untouched copy; redaction of secrets in what is shown; the done list.
+  - Added: an environment problem (a service, a device, a network path, a configuration) counts a read-only command that shows the symptom as the check; the fix waits for whatever agreement the repository's instructions require (the snippet asks for it on bug reports); "an ok over zero items, or an exit code alone" named as non-evidence.
+  - `tests.md`, disclosed behind a pointer and read before writing any test: red first, reading the runner's count line (zero collected is not a pass), seams at public interfaces agreed together with a plan's Verification and each given what it catches and misses, the three anti-patterns (implementation-coupled, tautological, horizontal slicing), mocks only at system boundaries, one slice at a time.
+  - Left out:
+    - the human-in-the-loop template script (it would ship an executable);
+    - shrinking the case as a gate (it is recommended instead);
+    - the TypeScript examples (one short Python example instead), the `codebase-design` vocabulary and the refactoring discussion;
+    - a separate `tdd` skill (one more always-loaded description).
+  - Model-invoked, so the snippet's bug-report line and `dev-shipper` can reach it. The description names two cases (a bug that resists a first look, and before writing a regression or behaviour test) and rules out questions one answer settles, since the upstream skill fired on plain questions. The always-on listing grows by its description (263 characters).
+- Templates:
+  - `dev-shipper` (ja/en): the test step points at the test rules of `ccharness:diagnosing-bugs`.
+  - CLAUDE.md snippet (ja/en): the bug-report line names `ccharness:diagnosing-bugs`; the prove-before-done line now asks for tests or logs seen able to fail (an ok over zero items, or an exit code alone, proves nothing). Snippet marker v0.3.2.
+- README row.
+- Tests: `tests/test_diagnosing_bugs_skill.py` checks the name, that the model can invoke the skill, a description of at most 300 characters with its exclusion, the sections, the key rules and the pointer, and the rules in `tests.md`. `tests/test_scaffold.sh` checks the `dev-shipper` pointer and the two snippet lines in both languages.
+
 ## 0.11.1
 
 ### Fixed
