@@ -153,9 +153,17 @@ snippet_marker_version() {
   sed -n 's/^<!-- ccharness template v\([0-9][0-9.]*\) ([a-z]*):.*/\1/p' "$1" | head -1
 }
 snippet_ver="$(snippet_marker_version "$CLAUDE_SNIPPET")"
+# AGENTS.md is read only when no CLAUDE.md exists, or when a CLAUDE.md imports it;
+# otherwise a marker there is not in effect and does not count.
+marker_candidates=("$TARGET/CLAUDE.md" "$TARGET/.claude/CLAUDE.md")
+if { [ ! -f "$TARGET/CLAUDE.md" ] && [ ! -f "$TARGET/.claude/CLAUDE.md" ]; } \
+   || grep -qsx '@\(\./\)\{0,1\}AGENTS\.md' "$TARGET/CLAUDE.md" \
+   || grep -qsx '@\(\.\./\)\{0,1\}AGENTS\.md' "$TARGET/.claude/CLAUDE.md"; then
+  marker_candidates+=("$TARGET/AGENTS.md")
+fi
 marker_file=""
 marker_ver=""
-for f in "$TARGET/CLAUDE.md" "$TARGET/.claude/CLAUDE.md" "$TARGET/AGENTS.md"; do
+for f in "${marker_candidates[@]}"; do
   [ -f "$f" ] || continue
   v="$(snippet_marker_version "$f")"
   if [ -n "$v" ]; then

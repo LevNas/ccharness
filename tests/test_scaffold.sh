@@ -161,6 +161,20 @@ out="$(report "$d")"
 echo "$out" | grep -q 'claude_md=append' || fail ".claude/CLAUDE.md must report append: $out"
 echo "$out" | grep -q "^claude-md: append .*$d/.claude/CLAUDE.md" || fail "append must name .claude/CLAUDE.md: $out"
 
+# a marker in AGENTS.md counts only while AGENTS.md is read: no CLAUDE.md, or a CLAUDE.md that imports it
+d="$(case_dir agents-marker-hidden)"; echo "# project" > "$d/CLAUDE.md"; printf '%s\n' "$snippet_head" > "$d/AGENTS.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=append' || fail "a CLAUDE.md that does not import AGENTS.md hides its marker, so append: $out"
+echo "$out" | grep -q "^claude-md: append .*$d/CLAUDE.md" || fail "append must name CLAUDE.md when AGENTS.md is hidden: $out"
+
+d="$(case_dir agents-marker-imported)"; printf '@AGENTS.md\n\n# project\n' > "$d/CLAUDE.md"; printf '%s\n' "$snippet_head" > "$d/AGENTS.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=current' || fail "a CLAUDE.md that imports AGENTS.md makes its marker count: $out"
+
+d="$(case_dir agents-marker-only)"; printf '%s\n' "$snippet_head" > "$d/AGENTS.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=current' || fail "AGENTS.md alone is read, so its marker counts: $out"
+
 # a real run (no --dry-run) still writes neither CLAUDE.md nor AGENTS.md
 d="$(case_dir agents-real)"; echo "# shared agent notes" > "$d/AGENTS.md"
 sum_before="$(cksum < "$d/AGENTS.md")"
