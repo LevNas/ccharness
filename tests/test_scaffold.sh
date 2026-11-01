@@ -125,4 +125,48 @@ for f in "$ROOT/templates/skills"/*/*/SKILL.md; do
   [ "$d" -le 320 ] || fail "description too long ($d bytes) in $f"
 done
 
+# 12. the instruction-file report: which file the CLAUDE.md snippet goes to, never written
+snippet_head="$(head -1 "$ROOT/templates/CLAUDE.md.snippet.en.md")"
+case_dir() { d="$TMP/case-$1"; mkdir -p "$d"; printf '%s' "$d"; }
+report() { bash "$ROOT/scripts/scaffold.sh" --lang en --target "$1" --dry-run --no-settings --no-skills; }
+
+d="$(case_dir agents-only)"; echo "# shared agent notes" > "$d/AGENTS.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=create-import' || fail "AGENTS.md only must report create-import: $out"
+echo "$out" | grep -q '^claude-md: create-import' || fail "AGENTS.md only: report line missing: $out"
+echo "$out" | grep -qF '@AGENTS.md' || fail "create-import must name the @AGENTS.md import: $out"
+
+d="$(case_dir both)"; echo "# project" > "$d/CLAUDE.md"; echo "# agents" > "$d/AGENTS.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=append' || fail "CLAUDE.md and AGENTS.md must report append: $out"
+echo "$out" | grep -q "^claude-md: append .*$d/CLAUDE.md" || fail "append must name CLAUDE.md: $out"
+
+d="$(case_dir none)"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=ask' || fail "no instruction file must report ask: $out"
+
+d="$(case_dir current)"; printf '# project\n\n%s\n## Workflow Rules\n' "$snippet_head" > "$d/CLAUDE.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=current' || fail "same snippet version must report current: $out"
+
+d="$(case_dir older)"; printf '# project\n\n<!-- ccharness template v0.0.1 (en): old -->\n' > "$d/CLAUDE.md"
+tpl_ver="$(echo "$snippet_head" | sed -n 's/^<!-- ccharness template v\([0-9.]*\) .*/\1/p')"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=review' || fail "older snippet version must report review: $out"
+echo "$out" | grep '^claude-md: review' | grep -q "v0.0.1" || fail "review must name the file's version: $out"
+echo "$out" | grep '^claude-md: review' | grep -q "v$tpl_ver" || fail "review must name the template's version: $out"
+
+d="$(case_dir dot-claude)"; mkdir -p "$d/.claude"; echo "# project" > "$d/.claude/CLAUDE.md"
+out="$(report "$d")"
+echo "$out" | grep -q 'claude_md=append' || fail ".claude/CLAUDE.md must report append: $out"
+echo "$out" | grep -q "^claude-md: append .*$d/.claude/CLAUDE.md" || fail "append must name .claude/CLAUDE.md: $out"
+
+# a real run (no --dry-run) still writes neither CLAUDE.md nor AGENTS.md
+d="$(case_dir agents-real)"; echo "# shared agent notes" > "$d/AGENTS.md"
+sum_before="$(cksum < "$d/AGENTS.md")"
+out="$(bash "$ROOT/scripts/scaffold.sh" --lang en --target "$d" --no-settings --no-skills)"
+[ ! -e "$d/CLAUDE.md" ] || fail "scaffold must not create CLAUDE.md"
+[ "$sum_before" = "$(cksum < "$d/AGENTS.md")" ] || fail "scaffold must not change AGENTS.md"
+echo "$out" | grep -q 'claude_md=create-import' || fail "real run must report the same action: $out"
+
 echo "OK: scaffold tests passed ($n_tpl en rules, $n_skill skills, ja rules total ${total} bytes)"

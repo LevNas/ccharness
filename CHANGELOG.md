@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.0
+
+Claude Code reads `AGENTS.md` only when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists (memory documentation, section "AGENTS.md"). Step 5 of the scaffold said only "append the snippet to CLAUDE.md", so in a repository with only `AGENTS.md` it would create a `CLAUDE.md` and hide `AGENTS.md`; and nothing stopped a second run from appending the snippet twice. The `setup-matt-pocock-skills` skill of mattpocock/skills (`skills/engineering/setup-matt-pocock-skills/SKILL.md`, commit `4ae2317`, MIT) answers both: write to the instruction file that exists, and update a block in place instead of appending a duplicate. Only that part is taken in, rewritten rather than copied.
+
+- `scripts/scaffold.sh` prints a `claude-md:` line and adds `claude_md=<action>` to the `done:` line. It still writes no instruction file.
+  - It looks for the snippet's own marker (its first line, `<!-- ccharness template v<version> (<lang>): ...`) in `CLAUDE.md`, `.claude/CLAUDE.md` and `AGENTS.md`. Only the marker counts, not headings, since another tool's `CLAUDE.md` can share a heading such as `## Workflow Rules`.
+  - Actions: `current` (the marker's version is the template's), `review` (another version; compare with the user, never append a second copy), `append` (to `CLAUDE.md`, else `.claude/CLAUDE.md`), `create-import` (only `AGENTS.md`: create `CLAUDE.md` with `@AGENTS.md` on its first line, then the snippet), `ask` (neither file exists). A `CLAUDE.local.md` is noted and never the target.
+  - Comparing versions is left to the script; comparing the snippet's text is not, because a repository's own edits are mixed into it.
+- `skills/scaffold` step 5 follows the `claude-md:` line, one instruction per action.
+  - After a `review`, step 5 sets the marker line's version to the template's once the user has settled each difference; otherwise every later run reports `review` again.
+- Different from upstream: upstream writes into `AGENTS.md` when only that file exists. Here a new `CLAUDE.md` imports it instead, so Claude-only lines (skill names such as `ccharness:diagnosing-bugs`) stay out of a file other agents read, and the import also works where Claude Code cannot read `AGENTS.md` directly.
+- Left out of upstream: the `docs/agents/` files (issue tracker, triage labels, domain docs) and the `## Agent skills` index, since no skill here reads them; asking one question per section; checking that the tracker's repository is reachable.
+- The snippet and its marker are unchanged (v0.3.2). A repository that took the v0.3.2 snippet reports `current`; one that took an earlier snippet reports `review`, even if its text was later edited by hand to match.
+- No description changes.
+- README rows.
+- Tests: `tests/test_scaffold.sh` case 12 covers the five actions, `.claude/CLAUDE.md`, and a real run that leaves `AGENTS.md` untouched and creates no `CLAUDE.md`.
+
 ## 0.12.1
 
 A plan's acceptance criteria can pass before any work is done, and then they grade nothing. This is the failure `diagnosing-bugs` already guards against for tests: trusting a check never seen failing. From the `to-tickets` skill of mattpocock/skills (its docs, `docs/engineering/to-tickets.md`, commit `5beb35b`, MIT), only that rule is taken in, rewritten rather than copied.
