@@ -21,7 +21,12 @@ Puts the always-on part of the harness into the target repository using only off
 2. Existing rule files and skills are never overwritten. A "differs" diff (truncated to 20 lines; the full command is printed) is information for the user, not something to resolve automatically.
 3. Run the same command without `--dry-run`.
 4. `.claude/settings.json`: when the file did not exist, the scaffold created it with the standard-tier `permissions.deny` rules. When it existed, the scaffold printed the rules that are missing; add them only with the user's approval (an Edit to the existing file, keeping everything else).
-5. `CLAUDE.md` is a shared file. Read `templates/CLAUDE.md.snippet.<lang>.md`, present it, and append it only after the user explicitly approves. Never edit CLAUDE.md on your own.
+5. `CLAUDE.md` is a shared file, and the scaffold never writes it. Its `claude-md:` line says where the snippet (`templates/CLAUDE.md.snippet.<lang>.md`) goes. Present the snippet and act only after the user explicitly approves:
+   - `append`: append the snippet to the file the line names.
+   - `create-import`: the repository has only `AGENTS.md`. Create `CLAUDE.md` with `@AGENTS.md` on its first line and the snippet below it. Do not write the snippet into `AGENTS.md`: other agents read that file, and once a `CLAUDE.md` exists Claude Code stops reading `AGENTS.md` directly, so the import keeps it loaded.
+   - `ask`: neither file exists; ask the user which one to create.
+   - `current`: the snippet is in, at the template's version; nothing to add.
+   - `review`: an older snippet is in. Show the user the differences between the template and that snippet, and change only what they approve. Never append a second copy. Once the user has settled each difference, set the marker line's version to the template's (with their approval), or the next run reports `review` again.
 6. Propose `.gitignore` entries for local workspace files if they are missing: `.claude/tasks/`, `.claude/private/`, `.claude/settings.local.json`.
 7. Report what was created and skipped, and the always-on budget after scaffolding (`ccharness:harness-budget`).
 

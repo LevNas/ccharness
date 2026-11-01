@@ -21,7 +21,7 @@ The split follows one question: *would starting work without knowing this cause 
 
 | Component | Kind | Purpose |
 |---|---|---|
-| `scripts/scaffold.sh` + `skills/scaffold` | scaffold | Copy rule templates into `.claude/rules/` (never overwrites), create or complete `permissions.deny` in `.claude/settings.json`, hand the `CLAUDE.md` snippet to the user |
+| `scripts/scaffold.sh` + `skills/scaffold` | scaffold | Copy rule templates into `.claude/rules/` (never overwrites), create or complete `permissions.deny` in `.claude/settings.json`, hand the `CLAUDE.md` snippet to the user with the file it goes to (`CLAUDE.md`, a new `CLAUDE.md` importing `AGENTS.md`, or nothing when it is in already) |
 | `templates/rules/{ja,en}/` | templates | `tool-call-resilience`, `discussion-phase-restraint`, `rules-and-skills-layering`, `local-workspace-files`; `tone` (Japanese only) |
 | `templates/skills/{ja,en}/` | templates | `session-wrap`, `arc-handoff` (switch arcs inside one long session), `session-end-cleanup`, `dev-shipper`, `pre-work-verification`, `local-workspace-files` (detail) - copied to `.claude/skills/` once, then owned by the repository (`--no-skills` to skip) |
 | `templates/settings.snippet.json` | template | Standard-tier deny rules: force push, `reset --hard`, `clean -f`, worktree-discarding checkout/restore, `chmod -R 777` |
@@ -60,6 +60,8 @@ A single known URL needs no leaf: fetch it directly with WebFetch. The former `u
 These came from ccorch (0.4.0), which, if installed, keeps the `/ccor` tmux panes for splitting work into separate sessions. While ccorch 0.4.0 is still installed alongside, each spawn is recorded in both ledgers (harmless), and its `/ccor-parallel` (which still uses `--force` and `branch -D`) and its tier guard overlap with this release; ccorch 0.5.0 removes them, and until then use `parallel-worktree`.
 
 Scaffolded rule files start with a marker line, `<!-- ccharness template v0.2.0 (ja) -->` (skills carry it right after the frontmatter), so a later version can be diffed against what is in the repository. Updates are proposed as diffs; the scaffold never overwrites.
+
+The `CLAUDE.md` snippet carries its own marker on its first line, `<!-- ccharness template v0.3.2 (ja): ... -->`. The scaffold looks for it in `CLAUDE.md`, `.claude/CLAUDE.md` and `AGENTS.md` (the last only while Claude Code reads it: no `CLAUDE.md`, or one with an `@AGENTS.md` line) and prints one `claude-md:` line: `current` (in already, same version), `review` (an older version is in; compare, never append a second copy), `append` (to the existing `CLAUDE.md`), `create-import` (only `AGENTS.md` exists: create `CLAUDE.md` with `@AGENTS.md` on its first line, because Claude Code stops reading `AGENTS.md` directly once a `CLAUDE.md` exists) or `ask` (neither file exists). Only the marker counts, not headings: another tool's `CLAUDE.md` can have a `## Workflow Rules` heading too.
 
 ## Install
 
